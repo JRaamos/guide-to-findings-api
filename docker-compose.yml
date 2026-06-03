@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql_guide-to-findings
+    environment:
+      MYSQL_ROOT_PASSWORD: a01fe6be4a36f
+      MYSQL_DATABASE: guide-to-findings
+      MYSQL_USER: guide-to-findings
+      MYSQL_PASSWORD: 43f8feb0298a
+    volumes:
+      - ./database/data:/var/lib/mysql
+    ports:
+      - "33063:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    restart: always
+  web:
+    build:
+      context: ./../guide-to-findings-frontend
+    container_name: web_guide-to-findings
+    ports:
+      - 8080:80
+    restart: always
+  api:
+    container_name: api
+    build: .
+    image: strapi:latest
+    restart: unless-stopped
+    env_file: .env.example
+    volumes:
+      - ./config:/opt/app/config
+      - ./src:/opt/app/src
+      - ./package.json:/opt/package.json
+      - ./yarn.lock:/opt/yarn.lock
+      - ./.env:/opt/app/.env
+      - ./public/uploads:/opt/app/public/uploads
+    ports:
+      - "8080:1337"

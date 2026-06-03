@@ -1,0 +1,21 @@
+{
+  "kind": "collectionType",
+  "collectionName": "sms_services",
+  "info": {
+    "singularName": "sms-service",
+    "pluralName": "sms-services",
+    "displayName": "sms service"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "code": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    }
+  }
+}

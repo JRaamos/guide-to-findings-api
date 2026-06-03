@@ -1,0 +1,69 @@
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const moment = require('moment');
+
+const backupDatabase = async () => {
+  const currentDate = moment().format('YYYY-MM-DD');
+  const backupFileName = `backup_${currentDate}.sql`;
+  const backupFilePath = path.join(`${__dirname}/../public/`, 'backups', backupFileName);
+
+  return new Promise((resolve) => {
+    exec(`mysqldump -h ${ process.env.DATABASE_HOST } -u ${ process.env.DATABASE_USERNAME } -p${ process.env.DATABASE_PASSWORD } ${ process.env.DATABASE_NAME } > ${backupFilePath}`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Backup error: ${error.message}`);
+        resolve({ success:false, file: backupFileName})
+        return;
+      }
+      if (stderr) {
+        console.error(`Backup stderr: ${stderr}`);
+        resolve({ success:true, file: backupFileName })
+        return;
+      }
+      console.log('Backup successful');
+      resolve({ success:true, file: backupFileName })
+    });
+  })
+  
+};
+
+// await strapi.connections.default.raw(`SHOW * FROM cities;`);
+
+const removeOldBackups = () => {
+    const backupDir = path.join(`${__dirname}/../public/`, 'backups');
+  
+    fs.readdir(backupDir, (err, files) => {
+      if (err) {
+        console.error('Error reading directory:', err);
+        return;
+      }
+  
+      const oneMonthAgo = moment().subtract(1, 'months');
+  
+      files.forEach((file) => {
+        const filePath = path.join(backupDir, file);
+        fs.stat(filePath, (err, stats) => {
+          if (err) {
+            console.error('Error getting file stats:', err);
+            return;
+          }
+          const fileModificationDate = moment(stats.mtime);
+          if (fileModificationDate.isBefore(oneMonthAgo)) {
+            fs.unlink(filePath, (err) => {
+              if (err) {
+                console.error('Error deleting file:', err);
+                return;
+              }
+              console.log(`Deleted file: ${file}`);
+            });
+          }
+        });
+      });
+    });
+};
+
+
+module.exports = {
+    backupDatabase,
+    removeOldBackups
+}

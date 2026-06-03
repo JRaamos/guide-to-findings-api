@@ -1,0 +1,20 @@
+{
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/callback",
+        "handler": "docusign.callback",
+        "config": {
+          "policies": []
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/send",
+        "handler": "docusign.send",
+        "config": {
+          "policies": []
+        }
+      }
+    ]
+  }

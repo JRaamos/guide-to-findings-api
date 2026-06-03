@@ -1,0 +1,53 @@
+{
+  "kind": "collectionType",
+  "collectionName": "plans",
+  "info": {
+    "singularName": "plan",
+    "pluralName": "plans",
+    "displayName": "plan",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "price": {
+      "type": "decimal",
+      "required": true,
+      "default": 5
+    },
+    "interval": {
+      "type": "enumeration",
+      "enum": [
+        "month"
+      ],
+      "default": "month",
+      "required": false
+    },
+    "plan_gateway_id": {
+      "type": "string"
+    },
+    "data": {
+      "type": "json"
+    }
+  }
+}

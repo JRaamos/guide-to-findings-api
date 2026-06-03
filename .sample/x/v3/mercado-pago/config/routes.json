@@ -1,0 +1,14 @@
+{
+  "routes": [
+      {
+          "method": "GET",
+          "path": "/mercadopago/payment-methods",
+          "handler": "mercado.methods",
+          "config": {
+              "policies": [],
+              "prefix": "",
+              "description": "Get payment methods"
+          }
+      }
+  ]
+}

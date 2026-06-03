@@ -1,0 +1,30 @@
+{
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/create-customer",
+        "handler": "iugu.createCustomer",
+        "config": {
+          "policies": []
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/find-customers",
+        "handler": "iugu.findCustomers",
+        "config": {
+          "policies": []
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/find-customer",
+        "handler": "iugu.findCustomerById",
+        "config": {
+          "policies": []
+        }
+      }
+  
+    ]
+  }
+  

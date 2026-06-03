@@ -1,0 +1,62 @@
+{
+  "collectionName": "components_user_addresses",
+  "info": {
+    "displayName": "address"
+  },
+  "options": {},
+  "attributes": {
+    "street": {
+      "type": "string"
+    },
+    "number": {
+      "type": "biginteger"
+    },
+    "city": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "uf": {
+      "type": "enumeration",
+      "enum": [
+        "AC",
+        "AL",
+        "AM",
+        "AP",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MG",
+        "MS",
+        "MT",
+        "PA",
+        "PB",
+        "PE",
+        "PI",
+        "PR",
+        "RJ",
+        "RN",
+        "RO",
+        "RR",
+        "RS",
+        "SC",
+        "SE",
+        "SP",
+        "TO"
+      ]
+    },
+    "neighborhood": {
+      "type": "string"
+    },
+    "complement": {
+      "type": "string"
+    },
+    "zipcode": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "order",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "plan": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::plan.plan"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "type": {
+      "type": "enumeration",
+      "enum": [
+        "subscription",
+        "order"
+      ],
+      "default": "subscription"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "created",
+        "cancelled",
+        "fail"
+      ],
+      "default": "created"
+    },
+    "data": {
+      "type": "json"
+    }
+  }
+}

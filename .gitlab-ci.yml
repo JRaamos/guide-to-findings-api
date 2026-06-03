@@ -1,0 +1,75 @@
+# ---
+image: node:20
+
+stages:
+  - check
+  - build
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+check:
+  stage: check
+  script:
+    - |
+      if [ -z "$SSH_PRIVATE_KEY" ]; then
+        echo "A variável SSH_PRIVATE_KEY não está definida. Abortando pipeline."
+        exit 1
+      fi
+    - |
+      if [ -z "$EC2_IP" ]; then
+        echo "A variável EC2_IP não está definida. Abortando pipeline."
+        exit 1
+      fi
+  only:
+    - main
+
+build:
+  stage: build
+  script:
+    - npm install
+    - cp .env.production .env
+    - npm run build
+    - apt-get update && apt-get install -y zip
+    - zip -r build.zip . -x "./node_modules/*"
+  artifacts:
+    paths:
+      - build.zip
+    expire_in: 1 day   
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - apk add --no-cache openssl
+    - openssl version
+  script:
+
+    - echo "Copying build artifact to deployment directory..."
+    - echo "$SSH_PRIVATE_KEY" > /tmp/server.pem  
+    - chmod 400 /tmp/server.pem
+    - scp -o StrictHostKeyChecking=no -i /tmp/server.pem build.zip ubuntu@$EC2_IP:/home/ubuntu/
+    - |
+      ssh -i /tmp/server.pem ubuntu@$EC2_IP << EOF
+        cd /home/ubuntu/
+        mkdir -p /tmp
+        cp -R /home/ubuntu/api/public/uploads /tmp || true
+        sudo pm2 kill
+        rm -rf api && mkdir -p api
+        unzip -o build.zip -d /home/ubuntu/api
+        rm build.zip
+        cd /home/ubuntu/api
+        cp -R /tmp/uploads ./public || true
+        npm i --prefer-offline
+        sudo pm2 start npm --name "strapi-app" -- start
+        sudo pm2 save
+        sudo pm2 startup systemd -u $USER --hp $HOME
+      EOF
+  only:
+    - main

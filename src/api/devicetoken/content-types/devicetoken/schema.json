@@ -1,0 +1,38 @@
+{
+  "kind": "collectionType",
+  "collectionName": "devicetokens",
+  "info": {
+    "singularName": "devicetoken",
+    "pluralName": "devicetokens",
+    "displayName": "DeviceToken",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": {
+        "visible": false
+    },
+    "content-type-builder": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "token": {
+      "type": "string"
+    },
+    "os": {
+      "type": "enumeration",
+      "enum": [
+        "android",
+        "ios"
+      ]
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}
