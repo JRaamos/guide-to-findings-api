@@ -11,6 +11,7 @@
     "watch": "strapi develop --watch-admin",
     "start": "strapi start",
     "build": "strapi build && node config/scripts.js",
+    "seed:local": "node scripts/seed-local.js",
     "strapi": "strapi",
     "export:roles": "EXPORT_ROLES=true yarn develop",
     "import:roles": "UPDATE_ROLES=true yarn develop"
