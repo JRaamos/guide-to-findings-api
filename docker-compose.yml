@@ -1,26 +1,25 @@
-version: '3.8'
 services:
-  mysql:
-    image: mysql:8
-    container_name: mysql_guide-to-findings
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_guide-to-findings
     environment:
-      MYSQL_ROOT_PASSWORD: a01fe6be4a36f
-      MYSQL_DATABASE: guide-to-findings
-      MYSQL_USER: guide-to-findings
-      MYSQL_PASSWORD: 43f8feb0298a
+      POSTGRES_DB: guide_to_findings
+      POSTGRES_USER: guide_to_findings
+      POSTGRES_PASSWORD: guide_to_findings
     volumes:
-      - ./database/data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "33063:3306"
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U guide_to_findings -d guide_to_findings"]
       interval: 10s
       retries: 5
       start_period: 10s
     restart: always
+
   web:
     build:
-      context: ./../guide-to-findings-frontend
+      context: ./../guide-to-findings-front-end
     container_name: web_guide-to-findings
     ports:
       - 8080:80
@@ -30,13 +29,21 @@ services:
     build: .
     image: strapi:latest
     restart: unless-stopped
-    env_file: .env.example
+    env_file: .env
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./config:/opt/app/config
       - ./src:/opt/app/src
       - ./package.json:/opt/package.json
-      - ./yarn.lock:/opt/yarn.lock
       - ./.env:/opt/app/.env
       - ./public/uploads:/opt/app/public/uploads
     ports:
-      - "8080:1337"
+      - "1337:1337"
+
+volumes:
+  postgres_data:

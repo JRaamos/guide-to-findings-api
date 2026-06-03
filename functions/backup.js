@@ -1,4 +1,4 @@
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
@@ -7,9 +7,30 @@ const backupDatabase = async () => {
   const currentDate = moment().format('YYYY-MM-DD');
   const backupFileName = `backup_${currentDate}.sql`;
   const backupFilePath = path.join(`${__dirname}/../public/`, 'backups', backupFileName);
+  const backupDir = path.dirname(backupFilePath);
+
+  fs.mkdirSync(backupDir, { recursive: true });
 
   return new Promise((resolve) => {
-    exec(`mysqldump -h ${ process.env.DATABASE_HOST } -u ${ process.env.DATABASE_USERNAME } -p${ process.env.DATABASE_PASSWORD } ${ process.env.DATABASE_NAME } > ${backupFilePath}`, (error, stdout, stderr) => {
+    const args = [
+      '-h',
+      process.env.DATABASE_HOST || 'localhost',
+      '-p',
+      process.env.DATABASE_PORT || '5432',
+      '-U',
+      process.env.DATABASE_USERNAME || 'guide_to_findings',
+      '-d',
+      process.env.DATABASE_NAME || 'guide_to_findings',
+      '-f',
+      backupFilePath,
+    ];
+
+    execFile('pg_dump', args, {
+      env: {
+        ...process.env,
+        PGPASSWORD: process.env.DATABASE_PASSWORD || '',
+      },
+    }, (error, stdout, stderr) => {
       if (error) {
         console.error(`Backup error: ${error.message}`);
         resolve({ success:false, file: backupFileName})
