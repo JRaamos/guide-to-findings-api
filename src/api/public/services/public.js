@@ -1,6 +1,9 @@
 'use strict';
 
+const crypto = require('crypto');
+
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ALLOWED_CLICK_EVENT_TYPES = ['productClick', 'affiliateClick', 'ctaClick'];
 
 const isValidSlug = (value) => {
   return typeof value === 'string' && SLUG_PATTERN.test(value);
@@ -11,7 +14,11 @@ const sortByOrder = (items = []) => {
     const first = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
     const second = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
 
-    return first - second;
+    if (first !== second) {
+      return first - second;
+    }
+
+    return (a.name || '').localeCompare(b.name || '', 'pt-BR');
   });
 };
 
@@ -49,6 +56,21 @@ const serializeCategory = (category) => {
     name: category.name,
     slug: category.slug,
     description: category.description || null,
+  };
+};
+
+const serializeCategoryListItem = (category) => {
+  if (!category) {
+    return null;
+  }
+
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description || null,
+    featuredImage: serializeImage(category.featuredImage),
+    order: category.order ?? null,
   };
 };
 
@@ -156,6 +178,22 @@ const serializeRelatedPage = (page) => {
   };
 };
 
+const serializePageSummary = (page) => {
+  const categorySlug = page.category?.slug || null;
+
+  return {
+    id: page.id,
+    title: page.title,
+    slug: page.slug,
+    pageType: page.pageType,
+    excerpt: page.excerpt || null,
+    canonicalUrl: page.canonicalUrl || page.seo?.canonicalUrl || null,
+    featuredImage: serializeImage(page.featuredImage),
+    url: categorySlug ? `/${categorySlug}/${page.slug}` : null,
+    categorySlug,
+  };
+};
+
 const buildBreadcrumbs = (page) => {
   const breadcrumbs = [
     {
@@ -177,6 +215,31 @@ const buildBreadcrumbs = (page) => {
   });
 
   return breadcrumbs;
+};
+
+const buildCategoryBreadcrumbs = (category) => {
+  return [
+    {
+      label: 'Início',
+      url: '/',
+    },
+    {
+      label: category.name,
+      url: `/${category.slug}`,
+    },
+  ];
+};
+
+const buildCategoryFallbackSeo = (category) => {
+  const description =
+    category.description || `Veja guias, rankings e comparativos de ${category.name}.`;
+
+  return {
+    metaTitle: `${category.name} | Guide to Findings`,
+    metaDescription: description,
+    canonicalUrl: `/${category.slug}`,
+    robots: 'indexFollow',
+  };
 };
 
 const serializePage = (page) => {
@@ -207,7 +270,197 @@ const serializePage = (page) => {
   };
 };
 
+const serializeCategoryDetail = (category) => {
+  const activeSubCategories = (category.subCategories || []).filter(
+    (subCategory) => subCategory.status === 'active'
+  );
+  const publishedPages = (category.pages || []).filter((page) => page.status === 'published');
+
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description || null,
+    featuredImage: serializeImage(category.featuredImage),
+    subCategories: sortByOrder(activeSubCategories).map(serializeCategoryListItem),
+    pages: sortByOrder(publishedPages).map(serializePageSummary),
+    breadcrumbs: buildCategoryBreadcrumbs(category),
+    seo: buildCategoryFallbackSeo(category),
+  };
+};
+
+const shouldIndexPage = (page) => {
+  return (
+    page.status === 'published' &&
+    page.category?.status === 'active' &&
+    page.seo?.robots !== 'noIndexFollow' &&
+    page.seo?.robots !== 'noIndexNoFollow'
+  );
+};
+
+const buildPageUrl = (page) => {
+  if (!page.category?.slug) {
+    return null;
+  }
+
+  return `/${page.category.slug}/${page.slug}`;
+};
+
+const serializeSitemapCategory = (category) => {
+  return {
+    url: `/${category.slug}`,
+    lastModified: category.updatedAt || category.createdAt || null,
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  };
+};
+
+const serializeSitemapPage = (page) => {
+  return {
+    url: buildPageUrl(page),
+    lastModified: page.updatedAt || page.createdAt || null,
+    changeFrequency: 'weekly',
+    priority: page.pageType === 'categoryLanding' ? 0.7 : 0.8,
+  };
+};
+
+const assignRelation = (data, field, id) => {
+  if (id) {
+    data[field] = id;
+  }
+};
+
+const sanitizeString = (value, maxLength = 500) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed ? trimmed.slice(0, maxLength) : null;
+};
+
+const sanitizeId = (value) => {
+  const numberValue = Number(value);
+
+  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
+};
+
+const hashIp = (ip) => {
+  const value = sanitizeString(ip, 200);
+
+  if (!value) {
+    return null;
+  }
+
+  return crypto.createHash('sha256').update(value).digest('hex');
+};
+
 module.exports = () => ({
+  async findCategories() {
+    const categories = await strapi.db.query('api::category.category').findMany({
+      where: {
+        status: 'active',
+      },
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      populate: {
+        featuredImage: true,
+      },
+    });
+
+    return sortByOrder(categories).map(serializeCategoryListItem);
+  },
+
+  async findCategoryBySlug(categorySlug) {
+    if (!isValidSlug(categorySlug)) {
+      return null;
+    }
+
+    const category = await strapi.db.query('api::category.category').findOne({
+      where: {
+        slug: categorySlug,
+        status: 'active',
+      },
+      populate: {
+        featuredImage: true,
+        subCategories: true,
+        pages: {
+          populate: {
+            featuredImage: true,
+            category: true,
+            seo: true,
+          },
+        },
+      },
+    });
+
+    if (!category || category.status !== 'active') {
+      return null;
+    }
+
+    return serializeCategoryDetail(category);
+  },
+
+  async findSitemap() {
+    const [categories, pages] = await Promise.all([
+      strapi.db.query('api::category.category').findMany({
+        where: {
+          status: 'active',
+        },
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      }),
+      strapi.db.query('api::page.page').findMany({
+        where: {
+          status: 'published',
+          category: {
+            status: 'active',
+          },
+        },
+        orderBy: [{ updatedAt: 'desc' }],
+        populate: {
+          category: true,
+          seo: true,
+        },
+      }),
+    ]);
+
+    const categoryItems = sortByOrder(categories).map(serializeSitemapCategory);
+    const pageItems = pages.filter(shouldIndexPage).map(serializeSitemapPage).filter((item) => item.url);
+
+    return [...categoryItems, ...pageItems];
+  },
+
+  async createClickEvent({ payload, userAgent, referrer, ip }) {
+    const eventType = sanitizeString(payload.eventType, 50);
+
+    if (!ALLOWED_CLICK_EVENT_TYPES.includes(eventType)) {
+      return { success: true };
+    }
+
+    try {
+      const data = {
+        eventType,
+        sourcePageUrl: sanitizeString(payload.sourcePageUrl, 500),
+        sourcePageTitle: sanitizeString(payload.sourcePageTitle, 255),
+        userAgent: sanitizeString(userAgent, 1000),
+        referrer: sanitizeString(referrer, 500),
+        ipHash: hashIp(ip),
+        clickedAt: new Date().toISOString(),
+      };
+
+      assignRelation(data, 'page', sanitizeId(payload.pageId));
+      assignRelation(data, 'product', sanitizeId(payload.productId));
+      assignRelation(data, 'affiliateLink', sanitizeId(payload.affiliateLinkId));
+      assignRelation(data, 'marketplace', sanitizeId(payload.marketplaceId));
+
+      await strapi.db.query('api::click-event.click-event').create({ data });
+    } catch (error) {
+      strapi.log.warn(`Public click event was not persisted: ${error.message}`);
+    }
+
+    return { success: true };
+  },
+
   async findPageBySlugs(categorySlug, contentSlug) {
     if (!isValidSlug(categorySlug) || !isValidSlug(contentSlug)) {
       return null;
