@@ -1,0 +1,64 @@
+{
+  "kind": "collectionType",
+  "collectionName": "click_events",
+  "info": {
+    "singularName": "click-event",
+    "pluralName": "click-events",
+    "displayName": "ClickEvent",
+    "description": "Internal click event model for future analytics workflows."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "eventType": {
+      "type": "enumeration",
+      "enum": [
+        "productClick",
+        "affiliateClick",
+        "ctaClick"
+      ],
+      "required": true
+    },
+    "sourcePageUrl": {
+      "type": "string"
+    },
+    "sourcePageTitle": {
+      "type": "string"
+    },
+    "userAgent": {
+      "type": "text"
+    },
+    "referrer": {
+      "type": "string"
+    },
+    "ipHash": {
+      "type": "string"
+    },
+    "clickedAt": {
+      "type": "datetime"
+    },
+    "page": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::page.page"
+    },
+    "product": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::product.product"
+    },
+    "affiliateLink": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::affiliate-link.affiliate-link",
+      "inversedBy": "clickEvents"
+    },
+    "marketplace": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::marketplace.marketplace"
+    }
+  }
+}

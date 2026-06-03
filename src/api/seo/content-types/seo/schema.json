@@ -1,0 +1,75 @@
+{
+  "kind": "collectionType",
+  "collectionName": "seos",
+  "info": {
+    "singularName": "seo",
+    "pluralName": "seos",
+    "displayName": "Seo",
+    "description": "SEO metadata attached to a dynamic page."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "metaTitle": {
+      "type": "string",
+      "required": true
+    },
+    "metaDescription": {
+      "type": "text",
+      "required": true
+    },
+    "canonicalUrl": {
+      "type": "string"
+    },
+    "ogTitle": {
+      "type": "string"
+    },
+    "ogDescription": {
+      "type": "text"
+    },
+    "ogImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "robots": {
+      "type": "enumeration",
+      "enum": [
+        "indexFollow",
+        "noIndexFollow",
+        "noIndexNoFollow"
+      ],
+      "default": "indexFollow"
+    },
+    "schemaType": {
+      "type": "enumeration",
+      "enum": [
+        "article",
+        "itemList",
+        "product",
+        "faqPage",
+        "breadcrumbList",
+        "comparison"
+      ]
+    },
+    "schemaData": {
+      "type": "json"
+    },
+    "focusKeyword": {
+      "type": "string"
+    },
+    "secondaryKeywords": {
+      "type": "json"
+    },
+    "page": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::page.page",
+      "mappedBy": "seo"
+    }
+  }
+}

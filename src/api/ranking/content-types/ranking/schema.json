@@ -1,0 +1,63 @@
+{
+  "kind": "collectionType",
+  "collectionName": "rankings",
+  "info": {
+    "singularName": "ranking",
+    "pluralName": "rankings",
+    "displayName": "Ranking",
+    "description": "Ranking attached to a dynamic page."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "rankingType": {
+      "type": "enumeration",
+      "enum": [
+        "top10",
+        "top5",
+        "bestCostBenefit",
+        "bestOverall",
+        "comparison"
+      ],
+      "default": "top10"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "draft",
+        "review",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "generatedByAi": {
+      "type": "boolean",
+      "default": false
+    },
+    "reviewedAt": {
+      "type": "datetime"
+    },
+    "page": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::page.page",
+      "inversedBy": "ranking"
+    },
+    "items": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::ranking-item.ranking-item",
+      "mappedBy": "ranking"
+    }
+  }
+}

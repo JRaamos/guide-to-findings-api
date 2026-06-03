@@ -1,0 +1,104 @@
+{
+  "kind": "collectionType",
+  "collectionName": "pages",
+  "info": {
+    "singularName": "page",
+    "pluralName": "pages",
+    "displayName": "Page",
+    "description": "Central dynamic page rendered by the frontend."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "pageType": {
+      "type": "enumeration",
+      "enum": [
+        "ranking",
+        "article",
+        "comparison",
+        "buyingGuide",
+        "categoryLanding"
+      ],
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "draft",
+        "review",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "excerpt": {
+      "type": "text"
+    },
+    "intro": {
+      "type": "richtext"
+    },
+    "content": {
+      "type": "dynamiczone",
+      "components": []
+    },
+    "conclusion": {
+      "type": "richtext"
+    },
+    "canonicalUrl": {
+      "type": "string"
+    },
+    "featuredImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images"
+      ]
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category",
+      "inversedBy": "pages"
+    },
+    "subCategory": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::sub-category.sub-category",
+      "inversedBy": "pages"
+    },
+    "seo": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::seo.seo",
+      "inversedBy": "page"
+    },
+    "ranking": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::ranking.ranking",
+      "mappedBy": "page"
+    },
+    "faqs": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::faq.faq",
+      "mappedBy": "page"
+    },
+    "relatedPages": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::page.page"
+    }
+  }
+}

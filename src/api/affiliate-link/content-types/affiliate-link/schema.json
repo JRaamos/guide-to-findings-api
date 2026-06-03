@@ -1,0 +1,65 @@
+{
+  "kind": "collectionType",
+  "collectionName": "affiliate_links",
+  "info": {
+    "singularName": "affiliate-link",
+    "pluralName": "affiliate-links",
+    "displayName": "AffiliateLink",
+    "description": "Affiliate URL attached to a product and marketplace."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "originalUrl": {
+      "type": "string"
+    },
+    "affiliateUrl": {
+      "type": "string",
+      "required": true
+    },
+    "trackingCode": {
+      "type": "string"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "active",
+        "inactive",
+        "broken"
+      ],
+      "default": "active"
+    },
+    "createdFrom": {
+      "type": "enumeration",
+      "enum": [
+        "manual",
+        "api",
+        "generated"
+      ],
+      "default": "manual"
+    },
+    "lastCheckedAt": {
+      "type": "datetime"
+    },
+    "product": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::product.product",
+      "inversedBy": "affiliateLinks"
+    },
+    "marketplace": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::marketplace.marketplace",
+      "inversedBy": "affiliateLinks"
+    },
+    "clickEvents": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::click-event.click-event",
+      "mappedBy": "affiliateLink"
+    }
+  }
+}

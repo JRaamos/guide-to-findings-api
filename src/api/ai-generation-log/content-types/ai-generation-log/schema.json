@@ -1,0 +1,84 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ai_generation_logs",
+  "info": {
+    "singularName": "ai-generation-log",
+    "pluralName": "ai-generation-logs",
+    "displayName": "AiGenerationLog",
+    "description": "Internal log for future AI generation workflows."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "promptType": {
+      "type": "enumeration",
+      "enum": [
+        "seo",
+        "ranking",
+        "productSummary",
+        "faq",
+        "article",
+        "comparison",
+        "buyingGuide",
+        "metadata"
+      ]
+    },
+    "prompt": {
+      "type": "text"
+    },
+    "inputData": {
+      "type": "json"
+    },
+    "outputData": {
+      "type": "json"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "success",
+        "failed",
+        "review",
+        "approved",
+        "rejected"
+      ]
+    },
+    "errorMessage": {
+      "type": "text"
+    },
+    "tokensInput": {
+      "type": "integer"
+    },
+    "tokensOutput": {
+      "type": "integer"
+    },
+    "costEstimate": {
+      "type": "decimal"
+    },
+    "generatedAt": {
+      "type": "datetime"
+    },
+    "page": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::page.page"
+    },
+    "product": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::product.product"
+    },
+    "ranking": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::ranking.ranking"
+    }
+  }
+}
