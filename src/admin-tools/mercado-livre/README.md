@@ -1,15 +1,29 @@
 # Mercado Livre Admin Tool
 
-Placeholder for the future Strapi Admin Mercado Livre tool.
+Administrative tool for Mercado Livre search and import inside Strapi Admin.
 
-This folder documents the intended administrative boundary only. The current
-working integration remains in:
+The V1 admin screen is registered in the Strapi Admin menu as "Mercado Livre"
+and lives in:
+
+```text
+src/admin/admin/MercadoLivrePage/
+src/admin/app.js
+```
+
+The working integration remains in:
 
 ```text
 src/services/marketplaces/mercado-livre/
 src/api/mercado-livre/
 ```
 
-Future plugin work should reuse the existing service layer for search,
-normalization and import.
+The admin screen calls the internal Strapi endpoints and does not call Mercado
+Livre directly from the browser:
 
+```text
+POST /api/internal/marketplaces/mercado-livre/search
+POST /api/internal/marketplaces/mercado-livre/import
+```
+
+Future plugin work should keep reusing the existing service layer for search,
+normalization and idempotent import.
