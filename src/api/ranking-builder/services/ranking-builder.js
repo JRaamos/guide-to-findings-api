@@ -18,4 +18,8 @@ module.exports = () => ({
   async update(id, payload) {
     return rankingBuilder.updateRanking(strapi, id, payload);
   },
+
+  async listProducts(filters) {
+    return rankingBuilder.listAvailableProducts(strapi, filters);
+  },
 });

@@ -2,7 +2,7 @@ import AuthLogo from './extensions/auth_logo.png';
 import MenuLogo from './extensions/menu_logo.png';
 import favicon from './extensions/favicon.ico';
 import PT_BR from './extensions/Translate/pt';
-import { ShoppingCart } from '@strapi/icons';
+import { PresentationChart, ShoppingCart } from '@strapi/icons';
 
 
 
@@ -11,6 +11,7 @@ PT_BR['app.components.LeftMenu.navbrand.workplace'] = 'Backoffice';
 PT_BR['Auth.form.welcome.title'] = ' ';
 PT_BR['Auth.form.welcome.subtitle'] = 'Backoffice';
 PT_BR['mercado-livre.menu.label'] = 'Mercado Livre';
+PT_BR['ranking-builder.menu.label'] = 'Ranking Builder';
 
 
 const config = {
@@ -51,6 +52,22 @@ const bootstrap = (app) => {
     },
     permissions: [],
     position: 3,
+  });
+
+  app.addMenuLink({
+    to: '/ranking-builder',
+    icon: PresentationChart,
+    intlLabel: {
+      id: 'ranking-builder.menu.label',
+      defaultMessage: 'Ranking Builder',
+    },
+    Component: async () => {
+      const component = await import('./admin/RankingBuilderPage');
+
+      return { default: component.default };
+    },
+    permissions: [],
+    position: 4,
   });
 };
 

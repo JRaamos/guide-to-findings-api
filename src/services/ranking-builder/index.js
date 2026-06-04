@@ -13,6 +13,7 @@ const DEFAULT_RANKING_TYPE = 'top10';
 const DEFAULT_RANKING_STATUS = 'draft';
 const DEFAULT_CTA_TEXT = 'Ver oferta';
 const BLOCKED_PRODUCT_STATUSES = ['rejected', 'archived'];
+const ELIGIBLE_PRODUCT_STATUSES = ['imported', 'review', 'approved'];
 
 const parseId = (value) => {
   const numberValue = Number(value);
@@ -172,7 +173,12 @@ const findActiveAffiliateLink = async (strapi, productId) => {
 
 const getRankingPopulate = () => ({
   items: {
-    populate: ['product', 'affiliateLink'],
+    populate: {
+      product: {
+        populate: ['category', 'subCategory'],
+      },
+      affiliateLink: true,
+    },
     orderBy: {
       position: 'asc',
     },
@@ -192,8 +198,13 @@ const formatProduct = (product) => {
     price: product.price,
     oldPrice: product.oldPrice,
     currency: product.currency,
+    imageUrl: product.imageUrl,
+    brand: product.brand,
+    availability: product.availability,
     status: product.status,
     marketplaceProductId: product.marketplaceProductId,
+    categoryId: product.category?.id || null,
+    subCategoryId: product.subCategory?.id || null,
   };
 };
 
@@ -224,21 +235,44 @@ const formatRankingItem = (item) => ({
   affiliateLink: formatAffiliateLink(item.affiliateLink),
 });
 
-const formatRanking = (ranking) => ({
-  id: ranking.id,
-  title: ranking.title,
-  description: ranking.description,
-  rankingType: ranking.rankingType,
-  status: ranking.status,
-  generatedByAi: ranking.generatedByAi,
-  reviewedAt: ranking.reviewedAt,
-  pageId: ranking.page?.id || null,
-  items: Array.isArray(ranking.items) ? ranking.items.map(formatRankingItem) : [],
-});
+const getRankingContext = (ranking) => {
+  const items = Array.isArray(ranking.items) ? ranking.items : [];
+  const product = items.find((item) => item.product)?.product;
+
+  return {
+    categoryId: product?.category?.id || null,
+    subCategoryId: product?.subCategory?.id || null,
+  };
+};
+
+const formatRanking = (ranking) => {
+  const context = getRankingContext(ranking);
+
+  return {
+    id: ranking.id,
+    title: ranking.title,
+    slug: ranking.slug,
+    description: ranking.description,
+    rankingType: ranking.rankingType,
+    status: ranking.status,
+    generatedByAi: ranking.generatedByAi,
+    reviewedAt: ranking.reviewedAt,
+    pageId: ranking.page?.id || null,
+    categoryId: context.categoryId,
+    subCategoryId: context.subCategoryId,
+    items: Array.isArray(ranking.items) ? ranking.items.map(formatRankingItem) : [],
+  };
+};
 
 const findRankingByTitle = (strapi, title) => {
   return getQuery(strapi, uid.ranking).findOne({
     where: { title },
+  });
+};
+
+const findRankingBySlug = (strapi, slug) => {
+  return getQuery(strapi, uid.ranking).findOne({
+    where: { slug },
   });
 };
 
@@ -262,7 +296,12 @@ const upsertRanking = async (strapi, payload, id) => {
     status: sanitizeText(payload.status) || DEFAULT_RANKING_STATUS,
     generatedByAi: false,
   };
+  const slug = sanitizeOptionalText(payload.slug);
   const rankingId = parseId(id);
+
+  if (slug) {
+    data.slug = slug;
+  }
 
   if (rankingId) {
     await getRequiredRecord(strapi, uid.ranking, rankingId, 'rankingId');
@@ -273,7 +312,9 @@ const upsertRanking = async (strapi, payload, id) => {
     });
   }
 
-  const existing = await findRankingByTitle(strapi, title);
+  const existing = slug
+    ? await findRankingBySlug(strapi, slug)
+    : await findRankingByTitle(strapi, title);
 
   if (existing) {
     return getQuery(strapi, uid.ranking).update({
@@ -387,9 +428,52 @@ const listRankings = async (strapi) => {
   return rankings.map(formatRanking);
 };
 
+const formatAvailableProduct = (product) => ({
+  id: product.id,
+  name: product.name,
+  imageUrl: product.imageUrl,
+  price: product.price,
+  currency: product.currency,
+  brand: product.brand,
+  availability: product.availability,
+  status: product.status,
+  categoryId: product.category?.id || null,
+  subCategoryId: product.subCategory?.id || null,
+});
+
+const listAvailableProducts = async (strapi, filters = {}) => {
+  const categoryId = parseId(filters.categoryId);
+  const subCategoryId = parseId(filters.subCategoryId);
+  const where = {
+    status: {
+      $in: ELIGIBLE_PRODUCT_STATUSES,
+    },
+  };
+
+  if (categoryId) {
+    where.category = { id: categoryId };
+  }
+
+  if (subCategoryId) {
+    where.subCategory = { id: subCategoryId };
+  }
+
+  const products = await getQuery(strapi, uid.product).findMany({
+    where,
+    orderBy: {
+      name: 'asc',
+    },
+    populate: ['category', 'subCategory'],
+    limit: 100,
+  });
+
+  return products.map(formatAvailableProduct);
+};
+
 module.exports = {
   createRanking,
   updateRanking,
   getRanking,
   listRankings,
+  listAvailableProducts,
 };

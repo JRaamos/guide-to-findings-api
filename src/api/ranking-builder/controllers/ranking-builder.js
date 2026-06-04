@@ -54,4 +54,17 @@ module.exports = {
       return ctx.badRequest(error.message);
     }
   },
+
+  async products(ctx) {
+    try {
+      ctx.body = {
+        success: true,
+        products: await getService().listProducts(ctx.query || {}),
+      };
+    } catch (error) {
+      strapi.log.warn(`[Ranking Builder] Product list failed: ${error.message}`);
+
+      return ctx.badRequest(error.message);
+    }
+  },
 };

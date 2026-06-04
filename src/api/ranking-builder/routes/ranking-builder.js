@@ -14,6 +14,16 @@ module.exports = {
     },
     {
       method: 'GET',
+      path: '/internal/rankings/products',
+      handler: 'ranking-builder.products',
+      config: {
+        auth: false,
+        policies: [],
+        description: 'List products available for internal Ranking Builder workflows',
+      },
+    },
+    {
+      method: 'GET',
       path: '/internal/rankings/:id',
       handler: 'ranking-builder.findOne',
       config: {
