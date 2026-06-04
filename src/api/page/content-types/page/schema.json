@@ -58,6 +58,12 @@
     "canonicalUrl": {
       "type": "string"
     },
+    "approvedAt": {
+      "type": "datetime"
+    },
+    "publishedAt": {
+      "type": "datetime"
+    },
     "featuredImage": {
       "type": "media",
       "multiple": false,

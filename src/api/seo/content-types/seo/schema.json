@@ -45,6 +45,18 @@
       ],
       "default": "indexFollow"
     },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "draft",
+        "review",
+        "approved"
+      ],
+      "default": "draft"
+    },
+    "approvedAt": {
+      "type": "datetime"
+    },
     "schemaType": {
       "type": "enumeration",
       "enum": [

@@ -75,6 +75,20 @@
       ],
       "default": "imported"
     },
+    "availability": {
+      "type": "enumeration",
+      "enum": [
+        "unknown",
+        "inStock",
+        "outOfStock",
+        "unavailable",
+        "removed"
+      ],
+      "default": "unknown"
+    },
+    "lastCheckedAt": {
+      "type": "datetime"
+    },
     "lastSyncedAt": {
       "type": "datetime"
     },

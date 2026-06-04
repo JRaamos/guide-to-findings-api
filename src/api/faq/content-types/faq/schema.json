@@ -31,6 +31,13 @@
       ],
       "default": "active"
     },
+    "generatedByAi": {
+      "type": "boolean",
+      "default": false
+    },
+    "approvedAt": {
+      "type": "datetime"
+    },
     "page": {
       "type": "relation",
       "relation": "manyToOne",

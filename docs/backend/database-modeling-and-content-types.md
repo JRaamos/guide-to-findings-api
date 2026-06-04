@@ -50,7 +50,7 @@ Representa uma página pública ou rascunho.
 
 ### Campos
 
-txt title: string slug: uid pageType: enumeration status: enumeration excerpt: text intro: richText content: dynamicZone conclusion: richText publishedAt: datetime canonicalUrl: string featuredImage: media 
+txt title: string slug: uid pageType: enumeration status: enumeration excerpt: text intro: richText content: dynamicZone conclusion: richText canonicalUrl: string approvedAt: datetime publishedAt: datetime featuredImage: media 
 
 ### pageType
 
@@ -116,7 +116,7 @@ Representa um produto importado ou cadastrado manualmente.
 
 ### Campos
 
-txt name: string slug: uid description: text shortDescription: text marketplaceProductId: string marketplaceUrl: string imageUrl: string price: decimal oldPrice: decimal currency: string rating: decimal reviewCount: integer soldQuantity: integer brand: string model: string attributes: json status: enumeration lastSyncedAt: datetime 
+txt name: string slug: uid description: text shortDescription: text marketplaceProductId: string marketplaceUrl: string imageUrl: string price: decimal oldPrice: decimal currency: string rating: decimal reviewCount: integer soldQuantity: integer brand: string model: string attributes: json status: enumeration availability: enumeration lastCheckedAt: datetime lastSyncedAt: datetime 
 
 ### status
 
@@ -185,7 +185,7 @@ Exemplo:
 
 ### Campos
 
-txt title: string description: text rankingType: enumeration status: enumeration generatedByAi: boolean reviewedAt: datetime 
+txt title: string slug: uid description: text searchIntent: text editorialNotes: text evaluationCriteria: json rankingType: enumeration status: enumeration generatedByAi: boolean reviewedAt: datetime 
 
 ### rankingType
 
@@ -225,7 +225,7 @@ Representa perguntas e respostas de uma página.
 
 ### Campos
 
-txt question: string answer: richText order: integer status: enumeration 
+txt question: string answer: richText order: integer status: enumeration generatedByAi: boolean approvedAt: datetime 
 
 ### status
 
@@ -243,7 +243,7 @@ Representa os dados SEO de uma página.
 
 ### Campos
 
-txt metaTitle: string metaDescription: text canonicalUrl: string ogTitle: string ogDescription: text ogImage: media robots: enumeration schemaType: enumeration schemaData: json focusKeyword: string secondaryKeywords: json 
+txt metaTitle: string metaDescription: text canonicalUrl: string ogTitle: string ogDescription: text ogImage: media robots: enumeration status: enumeration approvedAt: datetime schemaType: enumeration schemaData: json focusKeyword: string secondaryKeywords: json 
 
 ### robots
 

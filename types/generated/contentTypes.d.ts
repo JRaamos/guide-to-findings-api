@@ -687,9 +687,11 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   };
   attributes: {
     answer: Schema.Attribute.RichText & Schema.Attribute.Required;
+    approvedAt: Schema.Attribute.DateTime;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    generatedByAi: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::faq.faq'> &
       Schema.Attribute.Private;
@@ -800,6 +802,7 @@ export interface ApiPagePage extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    approvedAt: Schema.Attribute.DateTime;
     canonicalUrl: Schema.Attribute.String;
     category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
     conclusion: Schema.Attribute.RichText;
@@ -855,6 +858,10 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       'api::affiliate-link.affiliate-link'
     >;
     attributes: Schema.Attribute.JSON;
+    availability: Schema.Attribute.Enumeration<
+      ['unknown', 'inStock', 'outOfStock', 'unavailable', 'removed']
+    > &
+      Schema.Attribute.DefaultTo<'unknown'>;
     brand: Schema.Attribute.String;
     category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
     createdAt: Schema.Attribute.DateTime;
@@ -863,6 +870,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     currency: Schema.Attribute.String & Schema.Attribute.DefaultTo<'BRL'>;
     description: Schema.Attribute.Text;
     imageUrl: Schema.Attribute.String;
+    lastCheckedAt: Schema.Attribute.DateTime;
     lastSyncedAt: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -1000,6 +1008,8 @@ export interface ApiRankingRanking extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
+    editorialNotes: Schema.Attribute.Text;
+    evaluationCriteria: Schema.Attribute.JSON;
     generatedByAi: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     items: Schema.Attribute.Relation<
       'oneToMany',
@@ -1018,6 +1028,8 @@ export interface ApiRankingRanking extends Struct.CollectionTypeSchema {
     > &
       Schema.Attribute.DefaultTo<'top10'>;
     reviewedAt: Schema.Attribute.DateTime;
+    searchIntent: Schema.Attribute.Text;
+    slug: Schema.Attribute.UID<'title'>;
     status: Schema.Attribute.Enumeration<
       ['draft', 'review', 'published', 'archived']
     > &
@@ -1041,6 +1053,7 @@ export interface ApiSeoSeo extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    approvedAt: Schema.Attribute.DateTime;
     canonicalUrl: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1072,6 +1085,8 @@ export interface ApiSeoSeo extends Struct.CollectionTypeSchema {
       ]
     >;
     secondaryKeywords: Schema.Attribute.JSON;
+    status: Schema.Attribute.Enumeration<['draft', 'review', 'approved']> &
+      Schema.Attribute.DefaultTo<'draft'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

@@ -16,8 +16,21 @@
       "type": "string",
       "required": true
     },
+    "slug": {
+      "type": "uid",
+      "targetField": "title"
+    },
     "description": {
       "type": "text"
+    },
+    "searchIntent": {
+      "type": "text"
+    },
+    "editorialNotes": {
+      "type": "text"
+    },
+    "evaluationCriteria": {
+      "type": "json"
     },
     "rankingType": {
       "type": "enumeration",

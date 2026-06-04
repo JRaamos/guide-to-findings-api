@@ -159,6 +159,8 @@ async function upsertSeo(strapi, page) {
     ogDescription:
       'Compare serras mármore fictícias para validar o fluxo local entre Strapi e Next.js.',
     robots: 'indexFollow',
+    status: 'approved',
+    approvedAt: now(),
     schemaType: 'itemList',
     schemaData: {
       '@context': 'https://schema.org',
@@ -195,6 +197,8 @@ async function upsertFaq(strapi, page, faq) {
   const data = {
     ...faq,
     status: 'active',
+    generatedByAi: false,
+    approvedAt: now(),
     page: page.id,
   };
   const existing = await query(strapi, uid.faq).findOne({
@@ -219,8 +223,17 @@ async function upsertFaq(strapi, page, faq) {
 async function upsertRanking(strapi, page) {
   const data = {
     title: 'Top 10 serras mármore',
+    slug: 'top-10-serras-marmore',
     description:
       'Ranking local com opções fictícias de serras mármore para validar a página dinâmica.',
+    searchIntent:
+      'Ajudar usuários a comparar serras mármore para construção, reforma e pequenos serviços.',
+    editorialNotes:
+      'Seed local para validar Product -> Ranking -> RankingItem -> Page pública.',
+    evaluationCriteria: {
+      seed: 'local',
+      criteria: ['potência', 'custo-benefício', 'marca', 'uso em reforma'],
+    },
     rankingType: 'top10',
     status: 'published',
     generatedByAi: false,
@@ -319,6 +332,8 @@ async function seed(strapi) {
         productType: 'serra-marmore',
       },
       status: 'approved',
+      availability: 'inStock',
+      lastCheckedAt: now(),
       lastSyncedAt: now(),
       marketplace: marketplace.id,
       category: category.id,
@@ -350,6 +365,8 @@ async function seed(strapi) {
     conclusion:
       '<p>Para o teste ponta a ponta, a melhor opção é conferir se os cards aparecem com preço, nota, prós, contras e botão de oferta.</p>',
     canonicalUrl: '/construcao/top-10-serras-marmore',
+    approvedAt: now(),
+    publishedAt: now(),
     category: category.id,
     subCategory: subCategory.id,
     seo: seo.id,
