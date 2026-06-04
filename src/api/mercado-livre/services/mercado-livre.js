@@ -5,7 +5,7 @@ const { importProducts } = require('../../../services/marketplaces/mercado-livre
 
 module.exports = () => ({
   async search(payload) {
-    return searchProducts(payload);
+    return searchProducts(payload, { logger: strapi.log });
   },
 
   async import(payload) {

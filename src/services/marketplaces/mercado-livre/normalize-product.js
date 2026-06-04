@@ -27,12 +27,14 @@ const normalizeAttributes = (attributes = []) => {
 
 const normalizeProduct = (product = {}) => {
   const attributes = Array.isArray(product.attributes) ? product.attributes : [];
+  const picture = Array.isArray(product.pictures) ? product.pictures[0] : null;
+  const shortDescription = product.shortDescription || product.short_description?.content || null;
 
   return {
-    marketplaceProductId: product.id || null,
-    title: product.title || null,
-    permalink: product.permalink || null,
-    thumbnail: product.thumbnail || null,
+    marketplaceProductId: product.marketplaceProductId || product.item_id || product.id || null,
+    title: product.title || product.name || null,
+    permalink: product.permalink || product.url || null,
+    thumbnail: product.thumbnail || picture?.url || null,
     price: product.price ?? null,
     originalPrice: product.original_price ?? null,
     currency: product.currency_id || null,
@@ -40,7 +42,8 @@ const normalizeProduct = (product = {}) => {
     availableQuantity: product.available_quantity ?? null,
     soldQuantity: product.sold_quantity ?? null,
     categoryId: product.category_id || null,
-    sellerId: product.seller?.id || null,
+    sellerId: product.seller?.id || product.seller_id || null,
+    shortDescription,
     attributes: normalizeAttributes(attributes),
     brand: findAttributeValue(attributes, ['BRAND', 'Marca']),
     model: findAttributeValue(attributes, ['MODEL', 'Modelo']),
