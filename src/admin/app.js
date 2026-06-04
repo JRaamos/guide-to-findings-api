@@ -2,7 +2,7 @@ import AuthLogo from './extensions/auth_logo.png';
 import MenuLogo from './extensions/menu_logo.png';
 import favicon from './extensions/favicon.ico';
 import PT_BR from './extensions/Translate/pt';
-import { PresentationChart, ShoppingCart } from '@strapi/icons';
+import { Magic, PresentationChart, ShoppingCart } from '@strapi/icons';
 
 
 
@@ -12,6 +12,7 @@ PT_BR['Auth.form.welcome.title'] = ' ';
 PT_BR['Auth.form.welcome.subtitle'] = 'Backoffice';
 PT_BR['mercado-livre.menu.label'] = 'Mercado Livre';
 PT_BR['ranking-builder.menu.label'] = 'Ranking Builder';
+PT_BR['ai-generator.menu.label'] = 'AI Generator';
 
 
 const config = {
@@ -68,6 +69,22 @@ const bootstrap = (app) => {
     },
     permissions: [],
     position: 4,
+  });
+
+  app.addMenuLink({
+    to: '/ai-generator',
+    icon: Magic,
+    intlLabel: {
+      id: 'ai-generator.menu.label',
+      defaultMessage: 'AI Generator',
+    },
+    Component: async () => {
+      const component = await import('./admin/AiGeneratorPage');
+
+      return { default: component.default };
+    },
+    permissions: [],
+    position: 5,
   });
 };
 
