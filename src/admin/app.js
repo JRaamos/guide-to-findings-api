@@ -2,7 +2,7 @@ import AuthLogo from './extensions/auth_logo.png';
 import MenuLogo from './extensions/menu_logo.png';
 import favicon from './extensions/favicon.ico';
 import PT_BR from './extensions/Translate/pt';
-import { Magic, PresentationChart, ShoppingCart } from '@strapi/icons';
+import { CheckCircle, Magic, PresentationChart, ShoppingCart } from '@strapi/icons';
 
 
 
@@ -13,6 +13,7 @@ PT_BR['Auth.form.welcome.subtitle'] = 'Backoffice';
 PT_BR['mercado-livre.menu.label'] = 'Mercado Livre';
 PT_BR['ranking-builder.menu.label'] = 'Ranking Builder';
 PT_BR['ai-generator.menu.label'] = 'AI Generator';
+PT_BR['publication-workflow.menu.label'] = 'Publication Workflow';
 
 
 const config = {
@@ -85,6 +86,22 @@ const bootstrap = (app) => {
     },
     permissions: [],
     position: 5,
+  });
+
+  app.addMenuLink({
+    to: '/publication-workflow',
+    icon: CheckCircle,
+    intlLabel: {
+      id: 'publication-workflow.menu.label',
+      defaultMessage: 'Publication Workflow',
+    },
+    Component: async () => {
+      const component = await import('./admin/PublicationWorkflowPage');
+
+      return { default: component.default };
+    },
+    permissions: [],
+    position: 6,
   });
 };
 
