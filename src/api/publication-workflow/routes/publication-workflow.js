@@ -23,6 +23,16 @@ module.exports = {
       },
     },
     {
+      method: 'PUT',
+      path: '/internal/publication/pages/:id',
+      handler: 'publication-workflow.update',
+      config: {
+        auth: false,
+        policies: [],
+        description: 'Update editable Page, Seo and Faq fields during publication review',
+      },
+    },
+    {
       method: 'POST',
       path: '/internal/publication/pages/:id/approve',
       handler: 'publication-workflow.approve',

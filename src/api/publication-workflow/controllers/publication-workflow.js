@@ -29,6 +29,19 @@ module.exports = {
     }
   },
 
+  async update(ctx) {
+    try {
+      ctx.body = {
+        success: true,
+        page: await getService().updatePage(ctx.params.id, ctx.request.body || {}),
+      };
+    } catch (error) {
+      strapi.log.warn(`[Publication Workflow] Update page failed: ${error.message}`);
+
+      return ctx.badRequest(error.message);
+    }
+  },
+
   async approve(ctx) {
     try {
       ctx.body = {

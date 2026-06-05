@@ -10,6 +10,7 @@ const uid = {
 const REVIEWABLE_PAGE_STATUSES = ['draft', 'review', 'aiGenerated', 'underReview', 'approved'];
 const BLOCKED_PRODUCT_STATUSES = ['rejected', 'archived'];
 const BLOCKED_PRODUCT_AVAILABILITY = ['outOfStock', 'unavailable', 'removed'];
+const ALLOWED_ROBOTS = ['indexFollow', 'noIndexFollow', 'noIndexNoFollow'];
 
 const parseId = (value) => {
   const numberValue = Number(value);
@@ -18,6 +19,49 @@ const parseId = (value) => {
 };
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
+
+const isPlainObject = (value) => {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+};
+
+const normalizeText = (value) => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  return value.trim();
+};
+
+const normalizeOptionalText = (value) => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue || null;
+};
+
+const normalizeKeywords = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((keyword) => (typeof keyword === 'string' ? keyword.trim() : ''))
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+  }
+
+  throw new Error('secondaryKeywords must be an array or comma-separated string');
+};
 
 const sortFaqs = (faqs = []) => {
   return [...faqs].sort((first, second) => {
@@ -150,6 +194,7 @@ const validatePublicationReadiness = (page) => {
     });
   };
   const faqs = Array.isArray(page.faqs) ? page.faqs : [];
+  const activeFaqs = faqs.filter((faq) => faq.status === 'active');
   const rankingItems = Array.isArray(page.ranking?.items) ? page.ranking.items : [];
   const activeRankingItems = rankingItems.filter((item) => item.status === 'active');
   const missingProductItems = activeRankingItems.filter((item) => !item.product);
@@ -168,7 +213,7 @@ const validatePublicationReadiness = (page) => {
   const brokenAffiliateLinks = activeRankingItems.filter(
     (item) => item.affiliateLink && item.affiliateLink.status !== 'active'
   );
-  const approvedFaqs = faqs.filter((faq) => faq.approvedAt);
+  const approvedFaqs = activeFaqs.filter((faq) => faq.approvedAt);
 
   addValidation('page.exists', Boolean(page?.id), 'Page existe');
   addValidation('page.approved', Boolean(page.approvedAt), 'Page aprovada');
@@ -205,8 +250,8 @@ const validatePublicationReadiness = (page) => {
   );
   addValidation(
     'faqs.approved',
-    faqs.length === 0 || approvedFaqs.length === faqs.length,
-    'FAQs existentes estao aprovadas'
+    activeFaqs.length === 0 || approvedFaqs.length === activeFaqs.length,
+    'FAQs ativas estao aprovadas'
   );
 
   const pending = validations.filter((validation) => !validation.passed);
@@ -225,7 +270,9 @@ const serializePageDetail = (page) => ({
   pageType: page.pageType,
   status: page.status,
   excerpt: page.excerpt || null,
+  summary: page.excerpt || null,
   intro: page.intro || null,
+  introduction: page.intro || null,
   conclusion: page.conclusion || null,
   canonicalUrl: page.canonicalUrl || null,
   approvedAt: page.approvedAt || null,
@@ -273,6 +320,218 @@ const getPage = async (strapi, id) => {
   const page = await getRequiredPage(strapi, id);
 
   return serializePageDetail(page);
+};
+
+const buildPageUpdateData = (payload) => {
+  const data = {};
+  const title = normalizeText(payload.title);
+  const excerpt = normalizeOptionalText(payload.excerpt);
+  const summary = normalizeOptionalText(payload.summary);
+  const introduction = normalizeOptionalText(payload.introduction ?? payload.intro);
+  const conclusion = normalizeOptionalText(payload.conclusion);
+
+  if (title !== undefined) {
+    if (!title) {
+      throw new Error('title is required');
+    }
+
+    data.title = title;
+  }
+
+  if (summary !== undefined) {
+    data.excerpt = summary;
+  } else if (excerpt !== undefined) {
+    data.excerpt = excerpt;
+  }
+
+  if (introduction !== undefined) {
+    data.intro = introduction;
+  }
+
+  if (conclusion !== undefined) {
+    data.conclusion = conclusion;
+  }
+
+  return data;
+};
+
+const buildSeoUpdateData = (payload = {}) => {
+  if (!isPlainObject(payload)) {
+    throw new Error('seo must be an object');
+  }
+
+  const data = {};
+  const metaTitle = normalizeText(payload.metaTitle);
+  const metaDescription = normalizeText(payload.metaDescription);
+  const focusKeyword = normalizeOptionalText(payload.focusKeyword);
+  const secondaryKeywords = normalizeKeywords(payload.secondaryKeywords);
+  const robots = normalizeOptionalText(payload.robots);
+
+  if (metaTitle !== undefined) {
+    if (!metaTitle) {
+      throw new Error('seo.metaTitle is required');
+    }
+
+    data.metaTitle = metaTitle;
+  }
+
+  if (metaDescription !== undefined) {
+    if (!metaDescription) {
+      throw new Error('seo.metaDescription is required');
+    }
+
+    data.metaDescription = metaDescription;
+  }
+
+  if (focusKeyword !== undefined) {
+    data.focusKeyword = focusKeyword;
+  }
+
+  if (secondaryKeywords !== undefined) {
+    data.secondaryKeywords = secondaryKeywords;
+  }
+
+  if (robots !== undefined) {
+    if (!ALLOWED_ROBOTS.includes(robots)) {
+      throw new Error(`seo.robots must be one of: ${ALLOWED_ROBOTS.join(', ')}`);
+    }
+
+    data.robots = robots;
+  }
+
+  return data;
+};
+
+const updateFaqs = async (strapi, page, faqsPayload) => {
+  if (faqsPayload === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(faqsPayload)) {
+    throw new Error('faqs must be an array');
+  }
+
+  const existingFaqs = Array.isArray(page.faqs) ? page.faqs : [];
+  const existingFaqIds = new Set(existingFaqs.map((faq) => faq.id));
+  const receivedFaqIds = new Set();
+
+  for (const [index, faqPayload] of faqsPayload.entries()) {
+    if (!isPlainObject(faqPayload)) {
+      throw new Error('Each FAQ must be an object');
+    }
+
+    const question = normalizeText(faqPayload.question);
+    const answer = normalizeText(faqPayload.answer);
+
+    if (!question) {
+      throw new Error('FAQ question is required');
+    }
+
+    if (!answer) {
+      throw new Error('FAQ answer is required');
+    }
+
+    if (faqPayload.id) {
+      const faqId = parseId(faqPayload.id);
+
+      if (!faqId || !existingFaqIds.has(faqId)) {
+        throw new Error(`FAQ ${faqPayload.id} does not belong to this Page`);
+      }
+
+      receivedFaqIds.add(faqId);
+
+      await query(strapi, uid.faq).update({
+        where: { id: faqId },
+        data: {
+          question,
+          answer,
+          order: faqPayload.order ?? index + 1,
+          status: faqPayload.status === 'inactive' ? 'inactive' : 'active',
+          approvedAt: null,
+        },
+      });
+    } else {
+      await query(strapi, uid.faq).create({
+        data: {
+          question,
+          answer,
+          order: faqPayload.order ?? index + 1,
+          status: faqPayload.status === 'inactive' ? 'inactive' : 'active',
+          generatedByAi: false,
+          approvedAt: null,
+          page: page.id,
+        },
+      });
+    }
+  }
+
+  for (const faq of existingFaqs) {
+    if (!receivedFaqIds.has(faq.id)) {
+      await query(strapi, uid.faq).update({
+        where: { id: faq.id },
+        data: {
+          status: 'inactive',
+          approvedAt: null,
+        },
+      });
+    }
+  }
+};
+
+const updatePage = async (strapi, id, payload = {}) => {
+  if (!isPlainObject(payload)) {
+    throw new Error('payload must be an object');
+  }
+
+  const page = await getRequiredPage(strapi, id);
+
+  if (page.status === 'published') {
+    throw new Error('Published pages cannot be edited in Publication Workflow V2');
+  }
+
+  const pageData = buildPageUpdateData(payload);
+  const seoData = payload.seo === undefined ? {} : buildSeoUpdateData(payload.seo);
+  const hasPageChanges = Object.keys(pageData).length > 0;
+  const hasSeoChanges = Object.keys(seoData).length > 0;
+  const hasFaqChanges = payload.faqs !== undefined;
+
+  if (hasPageChanges) {
+    await query(strapi, uid.page).update({
+      where: { id: page.id },
+      data: {
+        ...pageData,
+        approvedAt: null,
+      },
+    });
+  }
+
+  if (hasSeoChanges) {
+    if (!page.seo?.id) {
+      throw new Error('Page must have Seo before it can be edited in Publication Workflow');
+    }
+
+    await query(strapi, uid.seo).update({
+      where: { id: page.seo.id },
+      data: {
+        ...seoData,
+        status: 'review',
+        approvedAt: null,
+      },
+    });
+  }
+
+  await updateFaqs(strapi, page, payload.faqs);
+
+  if ((hasSeoChanges || hasFaqChanges) && !hasPageChanges) {
+    await query(strapi, uid.page).update({
+      where: { id: page.id },
+      data: {
+        approvedAt: null,
+      },
+    });
+  }
+
+  return getPage(strapi, page.id);
 };
 
 const approvePage = async (strapi, id) => {
@@ -356,6 +615,7 @@ const publishPage = async (strapi, id) => {
 module.exports = {
   listPages,
   getPage,
+  updatePage,
   approvePage,
   publishPage,
   validatePublicationReadiness,
