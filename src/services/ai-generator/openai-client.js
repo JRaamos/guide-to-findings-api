@@ -67,7 +67,7 @@ const createStructuredResponse = async ({ schema, systemPrompt, userPrompt }) =>
           schema,
         },
       },
-      max_output_tokens: 2500,
+      max_output_tokens: 4000,
     }),
   });
   const responseData = await response.json().catch(() => ({}));
