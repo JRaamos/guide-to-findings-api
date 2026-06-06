@@ -113,6 +113,29 @@ const SEO_TITLE_MIN_LENGTH = 50;
 const SEO_TITLE_MAX_LENGTH = 60;
 const SEO_DESCRIPTION_MIN_LENGTH = 140;
 const SEO_DESCRIPTION_MAX_LENGTH = 160;
+const YEAR_PATTERN = /\b20\d{2}\b/g;
+const DATE_PATTERN = /\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/g;
+const MONTH_NAMES = [
+  'janeiro',
+  'fevereiro',
+  'marco',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+];
+const MONTH_PATTERN = new RegExp(`\\b(?:${MONTH_NAMES.join('|')})\\b`, 'gi');
+const RELATIVE_TEMPORAL_PATTERNS = [
+  /\b(?:este|neste)\s+ano\b/gi,
+  /\btemporada\s+atual\b/gi,
+  /\b(?:ranking|guia|comparativo|melhor|melhores)\s+(?:do|da|de|para|em)\s+ano\b/gi,
+];
 
 const stripHtml = (value = '') => {
   return value.toString().replace(/<[^>]*>/g, ' ');
@@ -128,6 +151,13 @@ const normalizeLongText = (value = '') => {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+};
+
+const normalizeComparableText = (value = '') => {
+  return normalizeWhitespace(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 };
 
 const trimAtWord = (value = '', maxLength) => {
@@ -152,6 +182,182 @@ const getItemName = (item) => {
 
 const getPrimaryProductName = (rankingContext) => {
   return getItemName(rankingContext.products?.[0]) || null;
+};
+
+const getAllowedTemporalContext = (rankingContext) => {
+  const contextText = JSON.stringify(rankingContext);
+  const normalizedContextText = normalizeComparableText(contextText);
+
+  return {
+    years: new Set(contextText.match(YEAR_PATTERN) || []),
+    months: new Set(
+      MONTH_NAMES.filter((month) =>
+        normalizedContextText.includes(normalizeComparableText(month))
+      ).map((month) => normalizeComparableText(month))
+    ),
+    dates: new Set(contextText.match(DATE_PATTERN) || []),
+  };
+};
+
+const cleanTemporalWhitespace = (value = '') => {
+  return value
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/([([{])\s+/g, '$1')
+    .replace(/\s+([)\]}])/g, '$1')
+    .replace(/\s+-\s*(?=($|[,.;:!?]))/g, '')
+    .replace(/(^|[\s([{])-\s+/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+\/\s+/g, ' / ')
+    .replace(/\s+$/g, '')
+    .trim();
+};
+
+const removeUnauthorizedYears = (value, allowedYears) => {
+  return value.replace(
+    /\b(?:em|de|do|da|para|no|na)?\s*(20\d{2})\b/gi,
+    (match, year) => {
+      if (allowedYears.has(year)) {
+        return match;
+      }
+
+      return '';
+    }
+  );
+};
+
+const removeUnauthorizedDates = (value, allowedDates) => {
+  return value.replace(DATE_PATTERN, (date) => (allowedDates.has(date) ? date : ''));
+};
+
+const removeUnauthorizedMonths = (value, allowedMonths) => {
+  return value.replace(
+    new RegExp(
+      `\\b(?:atualizado(?:a)?\\s+em|em|de|do|da|para|no|na)?\\s*(${MONTH_NAMES.join('|')})(?:\\s+de\\s+20\\d{2})?\\b`,
+      'gi'
+    ),
+    (match, month) => {
+      if (allowedMonths.has(normalizeComparableText(month))) {
+        return match;
+      }
+
+      return '';
+    }
+  );
+};
+
+const removeRelativeTemporalPhrases = (value) => {
+  return RELATIVE_TEMPORAL_PATTERNS.reduce(
+    (currentValue, pattern) => currentValue.replace(pattern, 'nesta selecao'),
+    value
+  );
+};
+
+const sanitizeTemporalText = (value, temporalContext) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const sanitizedValue = [
+    removeRelativeTemporalPhrases,
+    (text) => removeUnauthorizedDates(text, temporalContext.dates),
+    (text) => removeUnauthorizedMonths(text, temporalContext.months),
+    (text) => removeUnauthorizedYears(text, temporalContext.years),
+    cleanTemporalWhitespace,
+  ].reduce((currentValue, sanitizer) => sanitizer(currentValue), value);
+
+  return sanitizedValue;
+};
+
+const sanitizeTemporalValue = (value, temporalContext) => {
+  if (typeof value === 'string') {
+    return sanitizeTemporalText(value, temporalContext);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeTemporalValue(item, temporalContext))
+      .filter((item) => {
+        if (typeof item === 'string') {
+          return Boolean(normalizeWhitespace(item));
+        }
+
+        return item !== null && item !== undefined;
+      });
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        sanitizeTemporalValue(item, temporalContext),
+      ])
+    );
+  }
+
+  return value;
+};
+
+const findUnauthorizedTemporalReferences = (value, temporalContext, path = 'content') => {
+  if (typeof value === 'string') {
+    const findings = [];
+    const years = value.match(YEAR_PATTERN) || [];
+    const dates = value.match(DATE_PATTERN) || [];
+    const months = value.match(MONTH_PATTERN) || [];
+
+    for (const year of years) {
+      if (!temporalContext.years.has(year)) {
+        findings.push(`${path}: ${year}`);
+      }
+    }
+
+    for (const date of dates) {
+      if (!temporalContext.dates.has(date)) {
+        findings.push(`${path}: ${date}`);
+      }
+    }
+
+    for (const month of months) {
+      if (!temporalContext.months.has(normalizeComparableText(month))) {
+        findings.push(`${path}: ${month}`);
+      }
+    }
+
+    for (const pattern of RELATIVE_TEMPORAL_PATTERNS) {
+      pattern.lastIndex = 0;
+
+      if (pattern.test(value)) {
+        findings.push(`${path}: relative temporal phrase`);
+      }
+    }
+
+    return findings;
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      findUnauthorizedTemporalReferences(item, temporalContext, `${path}[${index}]`)
+    );
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value).flatMap(([key, item]) =>
+      findUnauthorizedTemporalReferences(item, temporalContext, `${path}.${key}`)
+    );
+  }
+
+  return [];
+};
+
+const applyTemporalGuardrails = (content, rankingContext) => {
+  const temporalContext = getAllowedTemporalContext(rankingContext);
+  const sanitizedContent = sanitizeTemporalValue(content, temporalContext);
+  const findings = findUnauthorizedTemporalReferences(sanitizedContent, temporalContext);
+
+  if (findings.length > 0) {
+    throw new Error(`AI response includes unauthorized temporal references: ${findings.join(', ')}`);
+  }
+
+  return sanitizedContent;
 };
 
 const hasGenericIntro = (value = '') => {
@@ -275,7 +481,7 @@ const normalizeMetaDescription = (value, content) => {
 };
 
 const normalizeKeywords = (keywords, rankingContext) => {
-  const contextText = normalizeWhitespace(JSON.stringify(rankingContext)).toLowerCase();
+  const temporalContext = getAllowedTemporalContext(rankingContext);
   const candidates = [
     ...(Array.isArray(keywords) ? keywords : []),
     rankingContext.ranking?.title,
@@ -287,13 +493,10 @@ const normalizeKeywords = (keywords, rankingContext) => {
 
   for (const keyword of candidates) {
     const value = normalizeWhitespace(keyword).toLowerCase();
+    const guardedValue = sanitizeTemporalText(value, temporalContext);
 
-    if (/\b20\d{2}\b/.test(value) && !contextText.includes(value.match(/\b20\d{2}\b/)?.[0])) {
-      continue;
-    }
-
-    if (value && !normalized.includes(value)) {
-      normalized.push(value);
+    if (guardedValue && !normalized.includes(guardedValue)) {
+      normalized.push(guardedValue);
     }
   }
 
@@ -333,7 +536,7 @@ const normalizeGeneratedContent = (content, rankingContext) => {
     secondaryKeywords: normalizeKeywords(content.seo.secondaryKeywords, rankingContext),
   };
 
-  return {
+  const normalizedContent = {
     ...content,
     title: normalizeWhitespace(content.title),
     excerpt: trimAtWord(content.excerpt, 220),
@@ -346,6 +549,8 @@ const normalizeGeneratedContent = (content, rankingContext) => {
     seo,
     faqs: normalizeFaqs(content.faqs),
   };
+
+  return applyTemporalGuardrails(normalizedContent, rankingContext);
 };
 
 const buildSystemPrompt = () => {
@@ -354,6 +559,9 @@ const buildSystemPrompt = () => {
     'Gere somente conteudo em portugues do Brasil para uma pagina publica de ranking focada em decisao de compra.',
     'Escreva com criterio editorial, comparacao objetiva e linguagem natural para consumidor brasileiro.',
     'Nao use HTML. Nao use Markdown. Nao invente precos, potencia, especificacoes, estoque ou dados tecnicos ausentes.',
+    'Nunca invente anos, datas, meses, temporadas ou periodos.',
+    'Nunca utilize 2023, 2024, 2025, 2026 ou qualquer outro ano a menos que esse ano esteja presente no contexto enviado.',
+    'Nao use expressoes como "atualizado em janeiro", "melhor de 2026", "ranking 2025", "este ano", "neste ano" ou "temporada atual" sem contexto temporal explicito.',
     'Quando um dado nao existir no contexto, simplesmente nao mencione esse dado.',
     'Evite frases genericas como "Escolher uma boa opcao pode ser uma tarefa dificil", "Neste artigo" e variacoes.',
     'Nao repita a mesma ideia em campos diferentes.',
@@ -376,6 +584,8 @@ const buildUserPrompt = (rankingContext) => {
     'FAQ: gere perguntas de intencao de compra, evitando perguntas vagas. Priorize uso profissional, custo-beneficio, escolha ideal e cuidados de compra.',
     'Conclusao: termine com recomendacao clara para a maioria dos usuarios, para uso profissional e para quem busca economia, quando os dados permitirem.',
     'SEO: metaTitle entre 50 e 60 caracteres; metaDescription entre 140 e 160 caracteres; focusKeyword baseada em categoria, ranking e produto principal; secondaryKeywords uteis.',
+    'SEO temporal: nao inclua anos, meses, datas ou periodos em title, excerpt, introduction, conclusion, metaTitle, metaDescription, focusKeyword, secondaryKeywords ou FAQ se eles nao estiverem no contexto JSON.',
+    'Slug e titulo publico serao derivados do conteudo gerado, portanto nao use anos ou periodos temporais sem contexto.',
     'Respeite os campos searchIntent, editorialNotes e evaluationCriteria quando eles existirem.',
     JSON.stringify(rankingContext),
   ].join('\n\n');
