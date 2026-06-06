@@ -13,6 +13,7 @@
     "build": "strapi build && node config/scripts.js",
     "seed:local": "node scripts/seed-local.js",
     "e2e:mvp": "node scripts/e2e-mvp-flow.js",
+    "cleanup:production": "node scripts/production-cleanup.js",
     "strapi": "strapi",
     "export:roles": "EXPORT_ROLES=true yarn develop",
     "import:roles": "UPDATE_ROLES=true yarn develop"
