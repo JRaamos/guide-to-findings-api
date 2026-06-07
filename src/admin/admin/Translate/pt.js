@@ -697,8 +697,6 @@ export default {
     "global.plugins.content-manager.description": "Maneira rápida de ver, editar e excluir os dados em seu banco de dados.",
     "global.plugins.content-type-builder": "Criador de Tipos de Conteúdo",
     "global.plugins.content-type-builder.description": "Modele a estrutura de dados da sua API. Crie novos campos e relações em apenas um minuto. Os arquivos são criados e atualizados automaticamente em seu projeto.",
-    "global.plugins.email": "Email",
-    "global.plugins.email.description": "Configure seu aplicativo para enviar emails.",
     "global.plugins.upload": "Biblioteca de mídia",
     "global.plugins.upload.description": "Gerenciamento de arquivos de mídia.",
     "global.plugins.graphql": "GraphQL",
