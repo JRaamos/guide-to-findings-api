@@ -75,6 +75,7 @@ const generatePageFromRanking = async (strapi, payload = {}) => {
       prompt: generated.prompt.user,
       inputData: {
         ranking: rankingContext.ranking,
+        source: rankingContext.source || null,
         category: rankingContext.category,
         subCategory: rankingContext.subCategory,
         products: rankingContext.products,

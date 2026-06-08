@@ -2,6 +2,8 @@
 
 const uid = {
   ranking: 'api::ranking.ranking',
+  marketplaceRanking: 'api::marketplace-ranking.marketplace-ranking',
+  marketplaceRankingEntry: 'api::marketplace-ranking-entry.marketplace-ranking-entry',
 };
 
 const parseId = (value) => {
@@ -32,6 +34,9 @@ const serializeProduct = (product) => {
     slug: product.slug,
     brand: product.brand || null,
     model: product.model || null,
+    marketplaceProductId: product.marketplaceProductId || null,
+    marketplaceUrl: product.marketplaceUrl || null,
+    imageUrl: product.imageUrl || null,
     price: product.price ?? null,
     oldPrice: product.oldPrice ?? null,
     currency: product.currency || 'BRL',
@@ -52,26 +57,44 @@ const serializeProduct = (product) => {
   };
 };
 
-const serializeRankingItem = (item) => ({
-  id: item.id,
-  position: item.position,
-  title: item.title || null,
-  summary: item.summary || null,
-  pros: item.pros || [],
-  cons: item.cons || [],
-  highlight: item.highlight || null,
-  score: item.score ?? null,
-  ctaText: item.ctaText || null,
-  status: item.status,
-  product: serializeProduct(item.product),
-  affiliateLink: item.affiliateLink
-    ? {
-        id: item.affiliateLink.id,
-        status: item.affiliateLink.status,
-        marketplaceId: item.affiliateLink.marketplace?.id || null,
-      }
-    : null,
-});
+const serializeRankingItem = (item, marketplaceEntryByProductId) => {
+  const marketplaceEntry = item.product?.id
+    ? marketplaceEntryByProductId.get(item.product.id) || null
+    : null;
+
+  return {
+    id: item.id,
+    position: item.position,
+    title: item.title || null,
+    summary: item.summary || null,
+    pros: item.pros || [],
+    cons: item.cons || [],
+    highlight: item.highlight || null,
+    score: item.score ?? null,
+    ctaText: item.ctaText || null,
+    status: item.status,
+    product: serializeProduct(item.product),
+    affiliateLink: item.affiliateLink
+      ? {
+          id: item.affiliateLink.id,
+          status: item.affiliateLink.status,
+          marketplaceId: item.affiliateLink.marketplace?.id || null,
+          marketplaceSlug: item.affiliateLink.marketplace?.slug || null,
+          hasAffiliateUrl: Boolean(item.affiliateLink.affiliateUrl),
+        }
+      : null,
+    marketplaceEntry: marketplaceEntry
+      ? {
+          id: marketplaceEntry.id,
+          position: marketplaceEntry.position,
+          sourceId: marketplaceEntry.sourceId,
+          sourceType: marketplaceEntry.sourceType,
+          enrichmentStatus: marketplaceEntry.enrichmentStatus,
+          status: marketplaceEntry.status,
+        }
+      : null,
+  };
+};
 
 const getCategoryFromRanking = (ranking) => {
   const itemWithCategory = (ranking.items || []).find((item) => item.product?.category);
@@ -83,6 +106,58 @@ const getSubCategoryFromRanking = (ranking) => {
   const itemWithSubCategory = (ranking.items || []).find((item) => item.product?.subCategory);
 
   return itemWithSubCategory?.product?.subCategory || null;
+};
+
+const getMarketplaceRankingSource = async (strapi, rankingId) => {
+  const marketplaceRanking = await strapi.db.query(uid.marketplaceRanking).findOne({
+    where: {
+      editorialRanking: {
+        id: rankingId,
+      },
+    },
+  });
+
+  if (!marketplaceRanking) {
+    return {
+      source: null,
+      entryByProductId: new Map(),
+    };
+  }
+
+  const entries = await strapi.db.query(uid.marketplaceRankingEntry).findMany({
+    where: {
+      marketplaceRanking: {
+        id: marketplaceRanking.id,
+      },
+      status: 'active',
+    },
+    populate: ['product'],
+    limit: 1000,
+  });
+  const entryByProductId = new Map(
+    entries
+      .filter((entry) => entry.product?.id)
+      .map((entry) => [entry.product.id, entry])
+  );
+
+  return {
+    source: {
+      type: 'marketplace-ranking',
+      marketplace: 'Mercado Livre',
+      marketplaceSlug: marketplaceRanking.marketplace,
+      source: 'highlights',
+      sourceLabel: 'mais vendidos do Mercado Livre',
+      siteId: marketplaceRanking.siteId,
+      externalCategoryId: marketplaceRanking.externalCategoryId,
+      externalCategoryName: marketplaceRanking.externalCategoryName || null,
+      sourceUrl: marketplaceRanking.sourceUrl || null,
+      lastSyncAt: marketplaceRanking.lastSyncAt || null,
+      totalHighlights: marketplaceRanking.totalHighlights ?? null,
+      totalPublishable: marketplaceRanking.totalPublishable ?? null,
+      publishableRate: marketplaceRanking.publishableRate ?? null,
+    },
+    entryByProductId,
+  };
 };
 
 const buildRankingContext = async (strapi, rankingId) => {
@@ -121,6 +196,7 @@ const buildRankingContext = async (strapi, rankingId) => {
 
   const category = getCategoryFromRanking(ranking);
   const subCategory = getSubCategoryFromRanking(ranking);
+  const marketplaceRankingSource = await getMarketplaceRankingSource(strapi, ranking.id);
 
   return {
     ranking: {
@@ -137,9 +213,10 @@ const buildRankingContext = async (strapi, rankingId) => {
         ? {
             id: ranking.page.id,
             status: ranking.page.status,
-          }
+        }
         : null,
     },
+    source: marketplaceRankingSource.source,
     category: category
       ? {
           id: category.id,
@@ -156,7 +233,9 @@ const buildRankingContext = async (strapi, rankingId) => {
           description: subCategory.description || null,
         }
       : null,
-    products: activeItems.map(serializeRankingItem),
+    products: activeItems.map((item) =>
+      serializeRankingItem(item, marketplaceRankingSource.entryByProductId)
+    ),
   };
 };
 

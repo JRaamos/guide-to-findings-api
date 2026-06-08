@@ -17,6 +17,8 @@
     "sync:ml:ranking": "node scripts/sync-mercadolivre-ranking.js",
     "sync:ml:ranking-products": "node scripts/sync-mercadolivre-ranking-products.js",
     "sync:ml:ranking-editorial": "node scripts/sync-mercadolivre-ranking-editorial.js",
+    "inspect:ai:ranking-context": "node scripts/inspect-ai-ranking-context.js",
+    "generate:ai:page": "node scripts/generate-ai-page-from-ranking.js",
     "e2e:mvp": "node scripts/e2e-mvp-flow.js",
     "cleanup:production": "node scripts/production-cleanup.js",
     "strapi": "strapi",

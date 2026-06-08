@@ -581,6 +581,8 @@ const buildUserPrompt = (rankingContext) => {
     'Top picks: use os tres primeiros itens quando existirem. Rotule como Melhor geral, Melhor custo-beneficio e Melhor alternativa. Nao invente produtos.',
     'Comparacao: compare os primeiros produtos entre si, dizendo para qual perfil cada um tende a fazer mais sentido com base apenas nos dados disponiveis.',
     'Metodologia: gere uma secao "Como avaliamos" citando posicao, informacoes do marketplace, disponibilidade, preco quando existir, avaliacao quando existir e criterios editoriais.',
+    'Se source.sourceLabel indicar mais vendidos do Mercado Livre, mencione essa origem como sinal de ordem do ranking, sem afirmar que os produtos sao os melhores absolutos ou mais recentes.',
+    'Nao mencione lastSyncAt como data publica, atualizacao, validade ou promessa de atualidade.',
     'FAQ: gere perguntas de intencao de compra, evitando perguntas vagas. Priorize uso profissional, custo-beneficio, escolha ideal e cuidados de compra.',
     'Conclusao: termine com recomendacao clara para a maioria dos usuarios, para uso profissional e para quem busca economia, quando os dados permitirem.',
     'SEO: metaTitle entre 50 e 60 caracteres; metaDescription entre 140 e 160 caracteres; focusKeyword baseada em categoria, ranking e produto principal; secondaryKeywords uteis.',
