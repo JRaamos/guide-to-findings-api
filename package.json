@@ -12,6 +12,10 @@
     "start": "strapi start",
     "build": "strapi build && node config/scripts.js",
     "seed:local": "node scripts/seed-local.js",
+    "discover:ml:highlights": "node scripts/discover-mercadolivre-highlights.js",
+    "discover:ml:ranking-enrichment": "node scripts/discover-mercadolivre-ranking-enrichment.js",
+    "sync:ml:ranking": "node scripts/sync-mercadolivre-ranking.js",
+    "sync:ml:ranking-products": "node scripts/sync-mercadolivre-ranking-products.js",
     "e2e:mvp": "node scripts/e2e-mvp-flow.js",
     "cleanup:production": "node scripts/production-cleanup.js",
     "strapi": "strapi",
@@ -20,10 +24,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.4.0",
+    "@strapi/sdk-plugin": "^5.3.2",
     "@types/react": "^18.3.23",
     "esbuild": "^0.25.5"
   },
   "dependencies": {
+    "@google-analytics/data": "^5.1.0",
     "@strapi/plugin-documentation": "^5.30.1",
     "@strapi/plugin-users-permissions": "^5.30.1",
     "@strapi/strapi": "^5.30.1",
@@ -43,6 +49,7 @@
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",
     "socket.io": "^4.8.0",
+    "strapi-google-analytics-dashboard": "^0.0.2",
     "styled-components": "^6.0.0",
     "uuid": "^9.0.1",
     "xlsx": "^0.18.5"

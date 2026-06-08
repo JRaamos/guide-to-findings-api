@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Manual dos Achados - Guia de criação de conteúdo no Strapi</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+
+      :root {
+        --ink: #101318;
+        --muted: #667085;
+        --line: #e5e7eb;
+        --soft: #f7faf8;
+        --soft-strong: #edf7f4;
+        --green: #2a6f56;
+        --green-dark: #225e48;
+        --amber: #f59e0b;
+        --danger: #dc2626;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--white);
+        font-family: Inter, Arial, Helvetica, sans-serif;
+        font-size: 11.2pt;
+        line-height: 1.55;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin-bottom: 14px;
+        font-size: 34pt;
+        font-weight: 900;
+        line-height: 1.05;
+        letter-spacing: -0.8pt;
+      }
+
+      h2 {
+        margin: 28px 0 10px;
+        color: var(--green-dark);
+        font-size: 19pt;
+        font-weight: 800;
+        line-height: 1.2;
+        break-after: avoid;
+      }
+
+      h3 {
+        margin: 20px 0 8px;
+        font-size: 13.5pt;
+        font-weight: 800;
+        break-after: avoid;
+      }
+
+      h4 {
+        margin: 14px 0 6px;
+        font-size: 11.5pt;
+        font-weight: 800;
+      }
+
+      p {
+        margin-bottom: 9px;
+      }
+
+      ul,
+      ol {
+        margin: 8px 0 12px 20px;
+        padding: 0;
+      }
+
+      li {
+        margin-bottom: 5px;
+      }
+
+      strong {
+        font-weight: 800;
+      }
+
+      code {
+        padding: 1px 4px;
+        background: var(--soft-strong);
+        border-radius: 4px;
+        color: var(--green-dark);
+        font-family: Menlo, Consolas, monospace;
+        font-size: 9.8pt;
+      }
+
+      .cover {
+        min-height: 238mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 4mm 0;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        margin-bottom: 22px;
+        padding: 6px 12px;
+        color: var(--green-dark);
+        background: var(--soft-strong);
+        border-radius: 999px;
+        font-size: 8.8pt;
+        font-weight: 800;
+        letter-spacing: 1.5pt;
+        text-transform: uppercase;
+      }
+
+      .subtitle {
+        max-width: 680px;
+        color: var(--muted);
+        font-size: 15pt;
+        line-height: 1.45;
+      }
+
+      .cover-card {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 34px;
+      }
+
+      .metric {
+        padding: 14px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
+      .metric strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--green-dark);
+        font-size: 17pt;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 9.5pt;
+      }
+
+      .page-break {
+        break-before: page;
+      }
+
+      .note {
+        margin: 14px 0;
+        padding: 14px 16px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--green);
+        border-radius: 12px;
+        break-inside: avoid;
+      }
+
+      .warning {
+        border-left-color: var(--amber);
+      }
+
+      .danger {
+        border-left-color: var(--danger);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+        margin: 14px 0 18px;
+        break-inside: avoid;
+      }
+
+      .flow span {
+        min-height: 42px;
+        display: grid;
+        place-items: center;
+        padding: 8px 6px;
+        text-align: center;
+        color: var(--green-dark);
+        background: var(--soft-strong);
+        border: 1px solid rgba(42, 111, 86, 0.22);
+        border-radius: 10px;
+        font-size: 8.7pt;
+        font-weight: 800;
+      }
+
+      .step {
+        margin: 14px 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        break-inside: avoid;
+      }
+
+      .step-number {
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        margin-right: 8px;
+        color: var(--white);
+        background: var(--green);
+        border-radius: 999px;
+        font-size: 10pt;
+        font-weight: 900;
+      }
+
+      .step-title {
+        display: inline;
+        font-size: 13pt;
+        font-weight: 900;
+      }
+
+      .path {
+        margin: 8px 0 10px;
+        padding: 8px 10px;
+        color: var(--green-dark);
+        background: var(--soft-strong);
+        border-radius: 8px;
+        font-weight: 800;
+      }
+
+      table {
+        width: 100%;
+        margin: 12px 0 16px;
+        border-collapse: collapse;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        break-inside: avoid;
+      }
+
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        text-align: left;
+        color: var(--green-dark);
+        background: var(--soft-strong);
+        font-size: 9.5pt;
+        font-weight: 900;
+      }
+
+      td {
+        font-size: 9.7pt;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin: 12px 0;
+      }
+
+      .check {
+        min-height: 40px;
+        padding: 9px 10px;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-size: 9.5pt;
+      }
+
+      .check::before {
+        content: "OK";
+        display: inline-block;
+        margin-right: 6px;
+        color: var(--green-dark);
+        font-size: 8pt;
+        font-weight: 900;
+      }
+
+      .footer-note {
+        margin-top: 30px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 9pt;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div>
+        <p class="eyebrow">Manual dos Achados</p>
+        <h1>Guia passo a passo para criar conteúdo no Strapi</h1>
+        <p class="subtitle">
+          Manual operacional para uma pessoa que nunca usou a plataforma criar uma página de ranking
+          bem feita, revisar o conteúdo e publicar com segurança no site público.
+        </p>
+        <div class="cover-card">
+          <div class="metric">
+            <strong>1</strong>
+            Fluxo oficial dentro do Strapi Admin
+          </div>
+          <div class="metric">
+            <strong>7</strong>
+            Etapas da pesquisa à publicação
+          </div>
+          <div class="metric">
+            <strong>0</strong>
+            Publicações sem revisão humana
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="meta"><strong>Projeto:</strong> Manual dos Achados</p>
+        <p class="meta"><strong>Uso:</strong> treinamento interno, operação editorial e criação de páginas públicas.</p>
+        <p class="meta"><strong>Versão:</strong> 1.0 - atualizado em 08/06/2026.</p>
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>1. Ideia central antes de começar</h2>
+      <div class="note">
+        <strong>Regra principal:</strong> tudo que for administração de conteúdo acontece no
+        <strong>Strapi Admin</strong>. O site em Next.js é apenas o site público que mostra páginas
+        aprovadas e publicadas.
+      </div>
+      <p>O fluxo correto para uma página de ranking é:</p>
+      <div class="flow">
+        <span>Categoria</span>
+        <span>Produtos</span>
+        <span>Ranking</span>
+        <span>IA</span>
+        <span>Revisão</span>
+        <span>Publicação</span>
+        <span>Site</span>
+      </div>
+      <p>
+        Exemplo usado neste guia: criar uma página pública chamada
+        <strong>Top 10 Serras Mármore</strong>, acessível em
+        <code>/construcao/top-10-serras-marmore</code>.
+      </p>
+
+      <h3>O que a pessoa precisa ter em mãos</h3>
+      <ul>
+        <li>Acesso ao Strapi Admin com usuário e senha.</li>
+        <li>Tema da página: exemplo, "serra mármore".</li>
+        <li>Categoria principal: exemplo, "Construção".</li>
+        <li>Subcategoria: exemplo, "Ferramentas elétricas".</li>
+        <li>Critério editorial inicial: melhor geral, custo-benefício, alternativa, uso profissional ou básico.</li>
+      </ul>
+
+      <h3>Onde acessar</h3>
+      <p>
+        Em ambiente local, abra <code>http://localhost:1337/admin</code>. Em produção, use a URL do
+        Strapi Admin informada pela equipe técnica.
+      </p>
+      <div class="warning note">
+        <strong>Importante:</strong> nunca publique uma página sem revisar produto, ranking, texto,
+        SEO, FAQ e link de compra. A IA ajuda a escrever, mas não substitui a revisão editorial.
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>2. Preparar categoria e subcategoria</h2>
+      <p>
+        Categorias organizam o site e fazem parte da URL pública. Sem categoria ativa, a página pode
+        não aparecer corretamente no site e no sitemap.
+      </p>
+
+      <div class="step">
+        <span class="step-number">1</span>
+        <p class="step-title">Criar ou revisar a Category</p>
+        <div class="path">Strapi Admin > Content Manager > Collection Types > Category</div>
+        <ol>
+          <li>Clique em <strong>Create new entry</strong> ou abra uma categoria existente.</li>
+          <li>Preencha <strong>name</strong>. Exemplo: <code>Construção</code>.</li>
+          <li>Preencha ou confirme <strong>slug</strong>. Exemplo: <code>construcao</code>.</li>
+          <li>Escreva uma <strong>description</strong> curta, com uma frase clara sobre a área.</li>
+          <li>Defina <strong>status</strong> como <code>active</code>.</li>
+          <li>Use <strong>order</strong> para controlar a ordem no site. Exemplo: <code>1</code>.</li>
+          <li>Salve.</li>
+        </ol>
+      </div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <p class="step-title">Criar ou revisar a SubCategory</p>
+        <div class="path">Strapi Admin > Content Manager > Collection Types > SubCategory</div>
+        <ol>
+          <li>Clique em <strong>Create new entry</strong> ou abra uma subcategoria existente.</li>
+          <li>Preencha <strong>name</strong>. Exemplo: <code>Ferramentas elétricas</code>.</li>
+          <li>Preencha <strong>slug</strong>. Exemplo: <code>ferramentas-eletricas</code>.</li>
+          <li>Defina <strong>status</strong> como <code>active</code>.</li>
+          <li>No campo de relação <strong>category</strong>, selecione <strong>Construção</strong>.</li>
+          <li>Salve.</li>
+        </ol>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>Como preencher bem</th>
+            <th>Erro comum</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>name</strong></td>
+            <td>Nome claro para o usuário final.</td>
+            <td>Usar nomes técnicos ou abreviações internas.</td>
+          </tr>
+          <tr>
+            <td><strong>slug</strong></td>
+            <td>Minúsculo, sem acento, separado por hífen.</td>
+            <td>Usar espaços, acentos ou mudar slug depois de publicar.</td>
+          </tr>
+          <tr>
+            <td><strong>status</strong></td>
+            <td>Use <code>active</code> para aparecer publicamente.</td>
+            <td>Deixar <code>inactive</code> e esperar aparecer no site.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Sobre IDs:</strong> algumas ferramentas internas pedem <code>categoryId</code> e
+        <code>subCategoryId</code>. Use o número exibido no registro/listagem do Strapi. Se o ID não
+        aparecer na tela, peça à equipe técnica para informar o ID correto antes de importar produtos.
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>3. Buscar e importar produtos do Mercado Livre</h2>
+      <p>
+        Esta etapa cria ou atualiza produtos, links afiliados e marketplace. Use produtos reais,
+        relevantes e com dados suficientes para o leitor decidir.
+      </p>
+
+      <div class="step">
+        <span class="step-number">3</span>
+        <p class="step-title">Buscar produtos</p>
+        <div class="path">Strapi Admin > Mercado Livre</div>
+        <ol>
+          <li>No campo de busca, digite o termo. Exemplo: <code>serra marmore</code>.</li>
+          <li>No campo <strong>limite</strong>, use entre 10 e 30 para começar.</li>
+          <li>Clique em <strong>Buscar</strong>.</li>
+          <li>Analise os resultados pelo nome, preço, imagem, marca e relevância.</li>
+        </ol>
+      </div>
+
+      <div class="step">
+        <span class="step-number">4</span>
+        <p class="step-title">Selecionar e importar</p>
+        <div class="path">Strapi Admin > Mercado Livre</div>
+        <ol>
+          <li>Marque os produtos que fazem sentido para o ranking.</li>
+          <li>Informe <strong>categoryId</strong> e <strong>subCategoryId</strong>.</li>
+          <li>Clique em <strong>Importar selecionados</strong>.</li>
+          <li>Aguarde a mensagem de sucesso.</li>
+        </ol>
+      </div>
+
+      <h3>Como escolher bons produtos</h3>
+      <div class="checklist">
+        <div class="check">Tem imagem real e clara.</div>
+        <div class="check">Tem preço informado.</div>
+        <div class="check">Tem marca ou modelo reconhecível.</div>
+        <div class="check">Combina com a categoria e subcategoria.</div>
+        <div class="check">Não é acessório quando o ranking é de produto principal.</div>
+        <div class="check">Não parece anúncio duplicado ou confuso.</div>
+      </div>
+
+      <h3>Revisar produtos importados</h3>
+      <div class="path">Strapi Admin > Content Manager > Collection Types > Product</div>
+      <ol>
+        <li>Abra cada produto importado.</li>
+        <li>Confira <strong>name</strong>, <strong>brand</strong>, <strong>model</strong>, <strong>price</strong> e <strong>imageUrl</strong>.</li>
+        <li>Confirme a relação com <strong>marketplace</strong>, <strong>category</strong> e <strong>subCategory</strong>.</li>
+        <li>Defina <strong>status</strong> como <code>approved</code> quando o produto puder entrar em ranking.</li>
+        <li>Defina <strong>availability</strong> como <code>inStock</code> quando houver disponibilidade conhecida.</li>
+        <li>Salve.</li>
+      </ol>
+
+      <div class="danger note">
+        <strong>Não use produto sem link ativo.</strong> Verifique em
+        <code>AffiliateLink</code> se existe <strong>affiliateUrl</strong> e se o status está
+        <code>active</code>.
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>4. Montar o Ranking Builder</h2>
+      <p>
+        O ranking define a decisão editorial: quais produtos entram, em que ordem aparecem e qual é
+        a recomendação principal.
+      </p>
+
+      <div class="step">
+        <span class="step-number">5</span>
+        <p class="step-title">Criar ranking</p>
+        <div class="path">Strapi Admin > Ranking Builder</div>
+        <ol>
+          <li>Preencha <strong>title</strong>. Exemplo: <code>Top 10 Serras Mármore</code>.</li>
+          <li>Preencha <strong>slug</strong>. Exemplo: <code>top-10-serras-marmore</code>.</li>
+          <li>Informe <strong>categoryId</strong> e <strong>subCategoryId</strong>.</li>
+          <li>Clique em <strong>Carregar produtos</strong>.</li>
+          <li>Marque pelo menos 3 produtos relevantes.</li>
+          <li>Defina uma <strong>position</strong> única para cada produto. Exemplo: 1, 2, 3.</li>
+          <li>Clique em <strong>Salvar ranking</strong>.</li>
+          <li>Anote o <strong>rankingId</strong> gerado ou exibido na listagem.</li>
+        </ol>
+      </div>
+
+      <h3>Critério recomendado para ordenar</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Posição</th>
+            <th>Uso recomendado</th>
+            <th>Como justificar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Melhor escolha geral.</td>
+            <td>Equilibra qualidade, preço, avaliações e confiança.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Melhor custo-benefício.</td>
+            <td>Boa entrega pelo preço, sem perder qualidade mínima.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Melhor alternativa.</td>
+            <td>Serve para um perfil diferente, como uso básico ou profissional.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="warning note">
+        <strong>Evite ranking sem lógica.</strong> A ordem deve contar uma história: melhor geral,
+        custo-benefício, alternativa, profissional, básico, barato, premium ou outra intenção clara.
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>5. Gerar rascunho com IA</h2>
+      <p>
+        A IA cria um rascunho de Page, Seo e Faq a partir do ranking. Nada deve ser publicado
+        automaticamente.
+      </p>
+
+      <div class="step">
+        <span class="step-number">6</span>
+        <p class="step-title">Gerar conteúdo</p>
+        <div class="path">Strapi Admin > AI Generator</div>
+        <ol>
+          <li>Informe o <strong>rankingId</strong> criado no Ranking Builder.</li>
+          <li>Clique em <strong>Gerar conteúdo</strong>.</li>
+          <li>Aguarde a mensagem de sucesso.</li>
+          <li>Anote os IDs retornados: <strong>pageId</strong>, <strong>seoId</strong>, <strong>faqIds</strong> e <strong>aiGenerationLogId</strong>.</li>
+        </ol>
+      </div>
+
+      <h3>O que a IA deve gerar</h3>
+      <ul>
+        <li><strong>Page draft:</strong> título, resumo, introdução, conclusão e conteúdo editorial.</li>
+        <li><strong>Seo draft:</strong> meta title, meta description, canonical, robots, schema e palavras-chave.</li>
+        <li><strong>Faq draft:</strong> perguntas e respostas úteis para a intenção de compra.</li>
+        <li><strong>AiGenerationLog:</strong> registro técnico da geração para auditoria.</li>
+      </ul>
+
+      <div class="danger note">
+        <strong>Revisão obrigatória:</strong> remova qualquer ano, data, promessa, especificação ou
+        informação técnica que não exista nos dados do produto ou no contexto editorial. Não publique
+        texto com "melhor de 2026", "atualizado em janeiro" ou datas inventadas.
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>6. Revisar no Publication Workflow</h2>
+      <p>
+        Esta é a etapa mais importante para a qualidade. A pessoa revisa o conteúdo antes de aprovar
+        e publicar.
+      </p>
+
+      <div class="step">
+        <span class="step-number">7</span>
+        <p class="step-title">Abrir a página para revisão</p>
+        <div class="path">Strapi Admin > Publication Workflow</div>
+        <ol>
+          <li>Na lista, procure a Page gerada pela IA.</li>
+          <li>Se necessário, digite o <strong>pageId</strong> no campo de carregamento.</li>
+          <li>Clique para carregar a página.</li>
+          <li>Revise os dados da Page, Seo e Faq.</li>
+        </ol>
+      </div>
+
+      <h3>Campos da Page</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>O que revisar</th>
+            <th>Boa prática</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Title</strong></td>
+            <td>Título público da página.</td>
+            <td>Claro, direto e sem ano inventado.</td>
+          </tr>
+          <tr>
+            <td><strong>Excerpt</strong></td>
+            <td>Resumo curto.</td>
+            <td>Explique o benefício da página em 1 ou 2 frases.</td>
+          </tr>
+          <tr>
+            <td><strong>Introduction</strong></td>
+            <td>Introdução editorial.</td>
+            <td>Diga para quem é o ranking e o que foi considerado.</td>
+          </tr>
+          <tr>
+            <td><strong>Summary</strong></td>
+            <td>Resumo de decisão.</td>
+            <td>Ajude o leitor a entender rapidamente as melhores opções.</td>
+          </tr>
+          <tr>
+            <td><strong>Conclusion</strong></td>
+            <td>Fechamento com recomendação.</td>
+            <td>Finalize com orientação clara por perfil de compra.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Campos de SEO</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>Como preencher</th>
+            <th>Referência</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Meta Title</strong></td>
+            <td>Entre 50 e 60 caracteres quando possível.</td>
+            <td><code>Top 10 serras mármore para comprar</code></td>
+          </tr>
+          <tr>
+            <td><strong>Meta Description</strong></td>
+            <td>Entre 140 e 160 caracteres quando possível.</td>
+            <td>Explique a seleção e o benefício da comparação.</td>
+          </tr>
+          <tr>
+            <td><strong>Focus Keyword</strong></td>
+            <td>Termo principal da página.</td>
+            <td><code>top 10 serras mármore</code></td>
+          </tr>
+          <tr>
+            <td><strong>Secondary Keywords</strong></td>
+            <td>Separe por vírgula.</td>
+            <td>Inclua variações úteis, sem exagero.</td>
+          </tr>
+          <tr>
+            <td><strong>Robots</strong></td>
+            <td>Use <code>indexFollow</code> para página pública real.</td>
+            <td>Use <code>noIndexNoFollow</code> para teste ou conteúdo temporário.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>FAQ</h3>
+      <ul>
+        <li>Use perguntas que uma pessoa realmente faria antes de comprar.</li>
+        <li>Evite perguntas genéricas como "Qual é o melhor produto?" sem contexto.</li>
+        <li>Responda com clareza e sem inventar especificações.</li>
+        <li>Remova FAQs duplicadas ou sem utilidade.</li>
+      </ul>
+    </section>
+
+    <section class="page-break">
+      <h2>7. Aprovar, publicar e testar</h2>
+      <div class="step">
+        <span class="step-number">8</span>
+        <p class="step-title">Salvar revisão</p>
+        <div class="path">Strapi Admin > Publication Workflow</div>
+        <ol>
+          <li>Depois de revisar Page, Seo e Faq, clique em <strong>Salvar</strong>.</li>
+          <li>Reabra a página e confira se as alterações persistiram.</li>
+        </ol>
+      </div>
+
+      <div class="step">
+        <span class="step-number">9</span>
+        <p class="step-title">Aprovar</p>
+        <div class="path">Strapi Admin > Publication Workflow</div>
+        <ol>
+          <li>Clique em <strong>Aprovar</strong>.</li>
+          <li>Confirme que a Page recebeu <strong>approvedAt</strong>.</li>
+          <li>Confirme que o Seo ficou com status <code>approved</code>.</li>
+          <li>Confirme que as FAQs foram aprovadas quando existirem.</li>
+        </ol>
+      </div>
+
+      <div class="step">
+        <span class="step-number">10</span>
+        <p class="step-title">Publicar</p>
+        <div class="path">Strapi Admin > Publication Workflow</div>
+        <ol>
+          <li>Clique em <strong>Publicar</strong>.</li>
+          <li>A página deve mudar para <code>status = published</code>.</li>
+          <li>O campo <strong>publishedAt</strong> deve ser preenchido.</li>
+        </ol>
+      </div>
+
+      <h3>Como testar no site público</h3>
+      <ol>
+        <li>Monte a URL no formato <code>/{categorySlug}/{pageSlug}</code>.</li>
+        <li>Exemplo: <code>/construcao/top-10-serras-marmore</code>.</li>
+        <li>Abra a URL no navegador.</li>
+        <li>Confira se aparecem: título, produtos, CTAs, FAQ, conclusão e SEO básico.</li>
+      </ol>
+
+      <div class="checklist">
+        <div class="check">A página abre no site público.</div>
+        <div class="check">O ranking aparece com produtos em ordem correta.</div>
+        <div class="check">As imagens aparecem ou usam fallback visual adequado.</div>
+        <div class="check">Os botões de oferta abrem os links corretos.</div>
+        <div class="check">FAQ e conclusão aparecem.</div>
+        <div class="check">A página não contém datas inventadas.</div>
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>8. Checklist final de qualidade editorial</h2>
+      <p>Antes de considerar uma página pronta, marque todos os itens abaixo.</p>
+      <div class="checklist">
+        <div class="check">Categoria está ativa.</div>
+        <div class="check">Subcategoria está ativa e ligada à categoria correta.</div>
+        <div class="check">Produtos relevantes foram aprovados.</div>
+        <div class="check">Cada produto tem link afiliado ativo.</div>
+        <div class="check">Ranking tem ordem lógica e posições únicas.</div>
+        <div class="check">Produto #1 é defensável como melhor escolha.</div>
+        <div class="check">Texto não parece genérico ou automático.</div>
+        <div class="check">Não há ano, data ou informação temporal inventada.</div>
+        <div class="check">Meta title e meta description estão revisados.</div>
+        <div class="check">Robots está correto para indexação.</div>
+        <div class="check">FAQ responde dúvidas reais.</div>
+        <div class="check">URL pública está correta.</div>
+      </div>
+
+      <h2>9. Problemas comuns e como resolver</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Problema</th>
+            <th>O que verificar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A página não aparece no site.</td>
+            <td>Confira se Page está <code>published</code>, Category está <code>active</code>, slug está correto e SEO não está <code>noIndexNoFollow</code>.</td>
+          </tr>
+          <tr>
+            <td>A página não aparece no sitemap.</td>
+            <td>Confira Page publicada, Category ativa e <code>Seo.robots = indexFollow</code>.</td>
+          </tr>
+          <tr>
+            <td>Produto sem imagem.</td>
+            <td>Confira <code>Product.imageUrl</code>. Se não houver imagem, o frontend usará fallback visual.</td>
+          </tr>
+          <tr>
+            <td>Botão de oferta não abre.</td>
+            <td>Confira se existe <code>AffiliateLink.affiliateUrl</code> e se o link está <code>active</code>.</td>
+          </tr>
+          <tr>
+            <td>IA gerou informação errada.</td>
+            <td>Edite no Publication Workflow antes de aprovar. Se for grave, gere novamente a partir do ranking revisado.</td>
+          </tr>
+          <tr>
+            <td>Ranking parece fraco.</td>
+            <td>Revise produtos, posições, destaques e critérios. Um ranking bom precisa explicar por que cada item está ali.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="footer-note">
+        Este guia descreve o fluxo operacional atual do Manual dos Achados:
+        Strapi Admin para administração e Next.js para site público. Em caso de dúvida, não publique:
+        salve como rascunho e peça revisão editorial ou técnica.
+      </div>
+    </section>
+  </body>
+</html>

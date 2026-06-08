@@ -1,0 +1,124 @@
+{
+  "kind": "collectionType",
+  "collectionName": "marketplace_ranking_entries",
+  "info": {
+    "singularName": "marketplace-ranking-entry",
+    "pluralName": "marketplace-ranking-entries",
+    "displayName": "MarketplaceRankingEntry",
+    "description": "Private technical state for one position inside a synchronized marketplace ranking."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "position": {
+      "type": "integer",
+      "required": true
+    },
+    "previousPosition": {
+      "type": "integer"
+    },
+    "sourceId": {
+      "type": "string",
+      "required": true
+    },
+    "sourceType": {
+      "type": "enumeration",
+      "enum": [
+        "product",
+        "item"
+      ],
+      "required": true
+    },
+    "marketplaceProductId": {
+      "type": "string"
+    },
+    "marketplaceItemId": {
+      "type": "string"
+    },
+    "titleSnapshot": {
+      "type": "text"
+    },
+    "brandSnapshot": {
+      "type": "string"
+    },
+    "modelSnapshot": {
+      "type": "string"
+    },
+    "priceSnapshot": {
+      "type": "decimal"
+    },
+    "oldPriceSnapshot": {
+      "type": "decimal"
+    },
+    "currencySnapshot": {
+      "type": "string",
+      "default": "BRL"
+    },
+    "imageUrlSnapshot": {
+      "type": "text"
+    },
+    "permalinkSnapshot": {
+      "type": "text"
+    },
+    "categoryIdSnapshot": {
+      "type": "string"
+    },
+    "ratingSnapshot": {
+      "type": "decimal"
+    },
+    "reviewCountSnapshot": {
+      "type": "integer"
+    },
+    "soldQuantitySnapshot": {
+      "type": "integer"
+    },
+    "enrichmentStatus": {
+      "type": "enumeration",
+      "enum": [
+        "publishable",
+        "partial",
+        "skipped",
+        "error"
+      ],
+      "default": "skipped"
+    },
+    "missingFields": {
+      "type": "json"
+    },
+    "errors": {
+      "type": "json"
+    },
+    "firstSeenAt": {
+      "type": "datetime"
+    },
+    "lastSeenAt": {
+      "type": "datetime"
+    },
+    "lastSyncAt": {
+      "type": "datetime"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "active",
+        "missing",
+        "unavailable",
+        "skipped"
+      ],
+      "default": "active"
+    },
+    "marketplaceRanking": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::marketplace-ranking.marketplace-ranking",
+      "inversedBy": "entries"
+    },
+    "product": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::product.product"
+    }
+  }
+}

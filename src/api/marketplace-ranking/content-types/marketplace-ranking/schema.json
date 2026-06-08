@@ -1,0 +1,91 @@
+{
+  "kind": "collectionType",
+  "collectionName": "marketplace_rankings",
+  "info": {
+    "singularName": "marketplace-ranking",
+    "pluralName": "marketplace-rankings",
+    "displayName": "MarketplaceRanking",
+    "description": "Private technical source for synchronized marketplace rankings."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "marketplace": {
+      "type": "enumeration",
+      "enum": [
+        "mercado-livre"
+      ],
+      "required": true,
+      "default": "mercado-livre"
+    },
+    "siteId": {
+      "type": "string",
+      "required": true
+    },
+    "externalCategoryId": {
+      "type": "string",
+      "required": true
+    },
+    "externalCategoryName": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "string",
+      "required": true
+    },
+    "sourceUrl": {
+      "type": "string"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "active",
+        "paused",
+        "error",
+        "archived"
+      ],
+      "default": "active"
+    },
+    "lastSyncAt": {
+      "type": "datetime"
+    },
+    "lastSyncStatus": {
+      "type": "enumeration",
+      "enum": [
+        "success",
+        "partial",
+        "error"
+      ]
+    },
+    "lastSyncError": {
+      "type": "json"
+    },
+    "totalHighlights": {
+      "type": "integer"
+    },
+    "totalEnriched": {
+      "type": "integer"
+    },
+    "totalPublishable": {
+      "type": "integer"
+    },
+    "publishableRate": {
+      "type": "decimal"
+    },
+    "contentFingerprint": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::marketplace-ranking-entry.marketplace-ranking-entry",
+      "mappedBy": "marketplaceRanking"
+    }
+  }
+}

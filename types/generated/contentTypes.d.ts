@@ -707,6 +707,129 @@ export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiMarketplaceRankingEntryMarketplaceRankingEntry
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'marketplace_ranking_entries';
+  info: {
+    description: 'Private technical state for one position inside a synchronized marketplace ranking.';
+    displayName: 'MarketplaceRankingEntry';
+    pluralName: 'marketplace-ranking-entries';
+    singularName: 'marketplace-ranking-entry';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    brandSnapshot: Schema.Attribute.String;
+    categoryIdSnapshot: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currencySnapshot: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'BRL'>;
+    enrichmentStatus: Schema.Attribute.Enumeration<
+      ['publishable', 'partial', 'skipped', 'error']
+    > &
+      Schema.Attribute.DefaultTo<'skipped'>;
+    errors: Schema.Attribute.JSON;
+    firstSeenAt: Schema.Attribute.DateTime;
+    imageUrlSnapshot: Schema.Attribute.Text;
+    lastSeenAt: Schema.Attribute.DateTime;
+    lastSyncAt: Schema.Attribute.DateTime;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::marketplace-ranking-entry.marketplace-ranking-entry'
+    > &
+      Schema.Attribute.Private;
+    marketplaceItemId: Schema.Attribute.String;
+    marketplaceProductId: Schema.Attribute.String;
+    marketplaceRanking: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::marketplace-ranking.marketplace-ranking'
+    >;
+    missingFields: Schema.Attribute.JSON;
+    modelSnapshot: Schema.Attribute.String;
+    oldPriceSnapshot: Schema.Attribute.Decimal;
+    permalinkSnapshot: Schema.Attribute.Text;
+    position: Schema.Attribute.Integer & Schema.Attribute.Required;
+    previousPosition: Schema.Attribute.Integer;
+    priceSnapshot: Schema.Attribute.Decimal;
+    product: Schema.Attribute.Relation<'manyToOne', 'api::product.product'>;
+    publishedAt: Schema.Attribute.DateTime;
+    ratingSnapshot: Schema.Attribute.Decimal;
+    reviewCountSnapshot: Schema.Attribute.Integer;
+    soldQuantitySnapshot: Schema.Attribute.Integer;
+    sourceId: Schema.Attribute.String & Schema.Attribute.Required;
+    sourceType: Schema.Attribute.Enumeration<['product', 'item']> &
+      Schema.Attribute.Required;
+    status: Schema.Attribute.Enumeration<
+      ['active', 'missing', 'unavailable', 'skipped']
+    > &
+      Schema.Attribute.DefaultTo<'active'>;
+    titleSnapshot: Schema.Attribute.Text;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiMarketplaceRankingMarketplaceRanking
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'marketplace_rankings';
+  info: {
+    description: 'Private technical source for synchronized marketplace rankings.';
+    displayName: 'MarketplaceRanking';
+    pluralName: 'marketplace-rankings';
+    singularName: 'marketplace-ranking';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    contentFingerprint: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    entries: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::marketplace-ranking-entry.marketplace-ranking-entry'
+    >;
+    externalCategoryId: Schema.Attribute.String & Schema.Attribute.Required;
+    externalCategoryName: Schema.Attribute.String;
+    lastSyncAt: Schema.Attribute.DateTime;
+    lastSyncError: Schema.Attribute.JSON;
+    lastSyncStatus: Schema.Attribute.Enumeration<
+      ['success', 'partial', 'error']
+    >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::marketplace-ranking.marketplace-ranking'
+    > &
+      Schema.Attribute.Private;
+    marketplace: Schema.Attribute.Enumeration<['mercado-livre']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'mercado-livre'>;
+    publishableRate: Schema.Attribute.Decimal;
+    publishedAt: Schema.Attribute.DateTime;
+    siteId: Schema.Attribute.String & Schema.Attribute.Required;
+    slug: Schema.Attribute.String & Schema.Attribute.Required;
+    sourceUrl: Schema.Attribute.String;
+    status: Schema.Attribute.Enumeration<
+      ['active', 'paused', 'error', 'archived']
+    > &
+      Schema.Attribute.DefaultTo<'active'>;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    totalEnriched: Schema.Attribute.Integer;
+    totalHighlights: Schema.Attribute.Integer;
+    totalPublishable: Schema.Attribute.Integer;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiMarketplaceMarketplace extends Struct.CollectionTypeSchema {
   collectionName: 'marketplaces';
   info: {
@@ -1684,6 +1807,8 @@ declare module '@strapi/strapi' {
       'api::click-event.click-event': ApiClickEventClickEvent;
       'api::devicetoken.devicetoken': ApiDevicetokenDevicetoken;
       'api::faq.faq': ApiFaqFaq;
+      'api::marketplace-ranking-entry.marketplace-ranking-entry': ApiMarketplaceRankingEntryMarketplaceRankingEntry;
+      'api::marketplace-ranking.marketplace-ranking': ApiMarketplaceRankingMarketplaceRanking;
       'api::marketplace.marketplace': ApiMarketplaceMarketplace;
       'api::notification.notification': ApiNotificationNotification;
       'api::page.page': ApiPagePage;

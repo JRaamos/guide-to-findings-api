@@ -65,8 +65,7 @@ const getRequiredRelation = async (strapi, uid, id, label) => {
 
 const buildProductData = ({ product, marketplace, category, subCategory }) => {
   const name = product.title || product.name || product.marketplaceProductId;
-
-  return {
+  const data = {
     name,
     slug: slugify(name || product.marketplaceProductId),
     shortDescription: product.shortDescription || name,
@@ -85,9 +84,17 @@ const buildProductData = ({ product, marketplace, category, subCategory }) => {
     status: 'imported',
     lastSyncedAt: new Date().toISOString(),
     marketplace: marketplace.id,
-    category: category.id,
-    subCategory: subCategory.id,
   };
+
+  if (category?.id) {
+    data.category = category.id;
+  }
+
+  if (subCategory?.id) {
+    data.subCategory = subCategory.id;
+  }
+
+  return data;
 };
 
 const upsertProduct = async (strapi, productData) => {
@@ -98,15 +105,25 @@ const upsertProduct = async (strapi, productData) => {
   });
 
   if (existing) {
-    return strapi.db.query('api::product.product').update({
+    const record = await strapi.db.query('api::product.product').update({
       where: { id: existing.id },
       data: productData,
     });
+
+    return {
+      action: 'updated',
+      record,
+    };
   }
 
-  return strapi.db.query('api::product.product').create({
+  const record = await strapi.db.query('api::product.product').create({
     data: productData,
   });
+
+  return {
+    action: 'created',
+    record,
+  };
 };
 
 const upsertAffiliateLink = async (strapi, product, marketplace, sourceProduct) => {
@@ -131,15 +148,100 @@ const upsertAffiliateLink = async (strapi, product, marketplace, sourceProduct) 
   };
 
   if (existing) {
-    return strapi.db.query('api::affiliate-link.affiliate-link').update({
+    const record = await strapi.db.query('api::affiliate-link.affiliate-link').update({
       where: { id: existing.id },
       data,
     });
+
+    return {
+      action: 'updated',
+      record,
+    };
   }
 
-  return strapi.db.query('api::affiliate-link.affiliate-link').create({
+  const record = await strapi.db.query('api::affiliate-link.affiliate-link').create({
     data,
   });
+
+  return {
+    action: 'created',
+    record,
+  };
+};
+
+const importNormalizedMarketplaceProducts = async (
+  strapi,
+  products,
+  { category = null, subCategory = null } = {}
+) => {
+  const marketplace = await ensureMarketplace(strapi);
+  const imported = [];
+  const skipped = [];
+  const stats = {
+    productsCreated: 0,
+    productsUpdated: 0,
+    affiliateLinksCreated: 0,
+    affiliateLinksUpdated: 0,
+  };
+
+  for (const sourceProduct of products) {
+    if (!sourceProduct.marketplaceProductId || !sourceProduct.permalink) {
+      skipped.push({
+        marketplaceProductId: sourceProduct.marketplaceProductId || null,
+        reason: 'missing marketplaceProductId or permalink',
+      });
+      continue;
+    }
+
+    const productData = buildProductData({
+      product: sourceProduct,
+      marketplace,
+      category,
+      subCategory,
+    });
+    const productResult = await upsertProduct(strapi, productData);
+    const product = productResult.record;
+    const affiliateLinkResult = await upsertAffiliateLink(
+      strapi,
+      product,
+      marketplace,
+      sourceProduct
+    );
+    const affiliateLink = affiliateLinkResult.record;
+
+    if (productResult.action === 'created') {
+      stats.productsCreated += 1;
+    } else {
+      stats.productsUpdated += 1;
+    }
+
+    if (affiliateLinkResult.action === 'created') {
+      stats.affiliateLinksCreated += 1;
+    } else {
+      stats.affiliateLinksUpdated += 1;
+    }
+
+    imported.push({
+      id: product.id,
+      marketplaceProductId: product.marketplaceProductId,
+      name: product.name,
+      slug: product.slug,
+      status: product.status,
+      affiliateLinkId: affiliateLink.id,
+      productAction: productResult.action,
+      affiliateLinkAction: affiliateLinkResult.action,
+      sourceEntryId: sourceProduct.sourceEntryId || null,
+    });
+  }
+
+  return {
+    success: true,
+    imported: imported.length,
+    skipped: skipped.length,
+    products: imported,
+    skippedProducts: skipped,
+    ...stats,
+  };
 };
 
 const importProducts = async (strapi, payload = {}) => {
@@ -161,47 +263,14 @@ const importProducts = async (strapi, payload = {}) => {
     payload.subCategoryId,
     'subCategoryId'
   );
-  const marketplace = await ensureMarketplace(strapi);
-  const imported = [];
-  const skipped = [];
 
-  for (const sourceProduct of products) {
-    if (!sourceProduct.marketplaceProductId || !sourceProduct.permalink) {
-      skipped.push({
-        marketplaceProductId: sourceProduct.marketplaceProductId || null,
-        reason: 'missing marketplaceProductId or permalink',
-      });
-      continue;
-    }
-
-    const productData = buildProductData({
-      product: sourceProduct,
-      marketplace,
-      category,
-      subCategory,
-    });
-    const product = await upsertProduct(strapi, productData);
-    const affiliateLink = await upsertAffiliateLink(strapi, product, marketplace, sourceProduct);
-
-    imported.push({
-      id: product.id,
-      marketplaceProductId: product.marketplaceProductId,
-      name: product.name,
-      slug: product.slug,
-      status: product.status,
-      affiliateLinkId: affiliateLink.id,
-    });
-  }
-
-  return {
-    success: true,
-    imported: imported.length,
-    skipped: skipped.length,
-    products: imported,
-    skippedProducts: skipped,
-  };
+  return importNormalizedMarketplaceProducts(strapi, products, {
+    category,
+    subCategory,
+  });
 };
 
 module.exports = {
   importProducts,
+  importNormalizedMarketplaceProducts,
 };
