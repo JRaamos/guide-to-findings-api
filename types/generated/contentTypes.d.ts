@@ -791,6 +791,10 @@ export interface ApiMarketplaceRankingMarketplaceRanking
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    editorialRanking: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::ranking.ranking'
+    >;
     entries: Schema.Attribute.Relation<
       'oneToMany',
       'api::marketplace-ranking-entry.marketplace-ranking-entry'

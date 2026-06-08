@@ -21,6 +21,7 @@ Mercado Livre /highlights
 -> MarketplaceRanking
 -> MarketplaceRankingEntry
 -> Product / AffiliateLink
+-> Ranking / RankingItem
 ```
 
 ## First Persistence
@@ -33,8 +34,6 @@ The first implemented persistence stores only:
   item.
 
 The technical sync intentionally does not create:
-- `Ranking`
-- `RankingItem`
 - `Page`
 - `Seo`
 - `Faq`
@@ -47,6 +46,8 @@ Logical keys:
 - `MarketplaceRankingEntry`: `marketplaceRanking + sourceId`
 - `Product`: `marketplaceProductId`
 - `AffiliateLink`: `product + marketplace`
+- `Ranking`: `MarketplaceRanking.editorialRanking`
+- `RankingItem`: `Ranking + Product`
 
 Running the manual sync repeatedly updates the same technical records instead
 of duplicating them.
@@ -75,16 +76,29 @@ It does not create editorial `Ranking`, `RankingItem`, `Page`, `Seo` or `Faq`.
 When a product is imported or updated, the technical entry points directly to
 the existing `Product` through `MarketplaceRankingEntry.product`.
 
+## Editorial Ranking Bridge
+
+```bash
+yarn sync:ml:ranking-editorial MLB188785
+```
+
+This command reads active/publishable `MarketplaceRankingEntry` records that are
+already linked to `Product`, then creates or updates one draft editorial
+`Ranking` and its `RankingItem` records.
+
+It reuses the existing editorial models and does not create `Page`, `Seo` or
+`Faq`. It also does not call the AI generator or publication workflow. Existing
+ranking item editorial text is preserved when positions are refreshed.
+
 ## Current Limits
 
 - There is no cron.
 - There is no public endpoint.
 - There is no admin UI.
-- There is no bridge to `Ranking` or `Page`.
+- There is no bridge to `Page`.
 - `soldQuantity` is usually unavailable from the current enrichment path.
 
 ## Next Phase
 
-The next phase should add a controlled bridge from imported `Product` records to
-editorial `Ranking` and `RankingItem` records. It should still avoid automatic
-publication.
+The next phase should call the existing AI Generator for a draft `Ranking`
+selected by the editor. It should still avoid automatic publication.

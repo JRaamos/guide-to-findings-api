@@ -86,6 +86,11 @@
       "relation": "oneToMany",
       "target": "api::marketplace-ranking-entry.marketplace-ranking-entry",
       "mappedBy": "marketplaceRanking"
+    },
+    "editorialRanking": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::ranking.ranking"
     }
   }
 }
