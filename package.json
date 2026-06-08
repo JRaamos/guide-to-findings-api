@@ -14,6 +14,7 @@
     "seed:local": "node scripts/seed-local.js",
     "discover:ml:highlights": "node scripts/discover-mercadolivre-highlights.js",
     "discover:ml:ranking-enrichment": "node scripts/discover-mercadolivre-ranking-enrichment.js",
+    "discover:ml:category": "node scripts/discover-mercadolivre-category-resolver.js",
     "sync:ml:ranking": "node scripts/sync-mercadolivre-ranking.js",
     "sync:ml:ranking-products": "node scripts/sync-mercadolivre-ranking-products.js",
     "sync:ml:ranking-editorial": "node scripts/sync-mercadolivre-ranking-editorial.js",
