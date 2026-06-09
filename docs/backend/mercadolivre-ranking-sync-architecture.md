@@ -16,6 +16,20 @@ Page
 The new private technical flow is:
 
 ```text
+free text term
+-> Mercado Livre category resolver
+-> Mercado Livre /highlights
+-> marketplace ranking enrichment
+-> MarketplaceRanking
+-> MarketplaceRankingEntry
+-> Product / AffiliateLink
+-> Ranking / RankingItem
+```
+
+The lower-level category-id flow is still available for debugging and targeted
+syncs:
+
+```text
 Mercado Livre /highlights
 -> marketplace ranking enrichment
 -> MarketplaceRanking
@@ -61,6 +75,23 @@ yarn sync:ml:ranking MLB188785
 The command calls the private sync service and prints the sync summary plus
 before/after counts for public models to confirm that `Product`, `Ranking` and
 `Page` were not created.
+
+## Term Orchestrator
+
+```bash
+yarn sync:ml:term "furadeira"
+```
+
+This command resolves a free text term to a Mercado Livre category using
+`domain_discovery`, validates that the category has enough `/highlights`, then
+runs the existing technical sync, product bridge and editorial ranking bridge.
+
+It stops at draft `Ranking` and `RankingItem`. It does not create `Page`, `Seo`
+or `Faq`, and it does not call the AI generator or publication workflow.
+
+If enrichment returns fewer than 10 publishable products, the command stops
+before the product and editorial bridges. The technical `MarketplaceRanking`
+state can still exist for auditing and debugging.
 
 ## Product / AffiliateLink Bridge
 

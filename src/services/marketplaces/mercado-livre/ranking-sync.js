@@ -261,7 +261,7 @@ const upsertEntries = async (strapi, marketplaceRanking, entries, syncedAt) => {
 
 const syncMarketplaceRanking = async (
   strapi,
-  { siteId = DEFAULT_SITE_ID, categoryId, title, externalCategoryName, sourceUrl } = {}
+  { siteId = DEFAULT_SITE_ID, categoryId, title, externalCategoryName, sourceUrl, limit = DEFAULT_LIMIT } = {}
 ) => {
   if (!strapi?.db) {
     throw new Error('strapi instance is required');
@@ -275,7 +275,7 @@ const syncMarketplaceRanking = async (
   const enrichmentResult = await getMarketplaceRankingProducts({
     siteId,
     categoryId,
-    limit: DEFAULT_LIMIT,
+    limit,
   });
   const entries = buildCurrentEntries(enrichmentResult);
   const contentFingerprint = createFingerprint(entries);
