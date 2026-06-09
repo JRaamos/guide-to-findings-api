@@ -93,6 +93,21 @@ If enrichment returns fewer than 10 publishable products, the command stops
 before the product and editorial bridges. The technical `MarketplaceRanking`
 state can still exist for auditing and debugging.
 
+## Controlled Auto Publish
+
+```bash
+yarn sync:ml:publish "furadeira"
+```
+
+This command reuses the term orchestrator, AI Generator and Publication
+Workflow. It validates the top 10 ranking items before generation, validates the
+generated draft content, then runs the existing approval and publication
+validation.
+
+If any validation fails, the generated Page remains draft and the command
+returns `requiresReview: true`. It never bypasses Publication Workflow
+readiness and does not create public endpoints or cron jobs.
+
 ## Product / AffiliateLink Bridge
 
 ```bash

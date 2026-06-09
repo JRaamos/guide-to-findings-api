@@ -19,6 +19,7 @@
     "sync:ml:ranking-products": "node scripts/sync-mercadolivre-ranking-products.js",
     "sync:ml:ranking-editorial": "node scripts/sync-mercadolivre-ranking-editorial.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",
+    "sync:ml:publish": "node scripts/sync-generate-publish-mercadolivre-ranking.js",
     "inspect:ai:ranking-context": "node scripts/inspect-ai-ranking-context.js",
     "generate:ai:page": "node scripts/generate-ai-page-from-ranking.js",
     "e2e:mvp": "node scripts/e2e-mvp-flow.js",
