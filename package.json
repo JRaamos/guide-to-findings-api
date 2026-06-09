@@ -12,6 +12,7 @@
     "start": "strapi start",
     "build": "strapi build && node config/scripts.js",
     "seed:local": "node scripts/seed-local.js",
+    "inspect:editorial-plan": "node scripts/inspect-editorial-plan.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",
     "sync:ml:publish": "node scripts/sync-generate-publish-mercadolivre-ranking.js",
     "cleanup:production": "node scripts/production-cleanup.js",

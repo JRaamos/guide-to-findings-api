@@ -30,6 +30,36 @@ Page
 `MarketplaceRanking` and `MarketplaceRankingEntry` stay private and technical.
 They are not a second public ranking layer.
 
+## Editorial Intelligence
+
+The Mercado Livre pipeline now builds a deterministic `editorialPlan` before
+the AI Generator step.
+
+The plan separates the product source from the public search intent:
+
+```text
+Mercado Livre
+-> source for product discovery, highlights, prices and affiliate links
+
+Editorial Plan
+-> public title hint, slug hint, focus keyword and SEO/GEO constraints
+```
+
+This keeps Mercado Livre traceability without forcing the public title or slug
+to include `Mercado Livre`. For example, the source can remain Mercado Livre
+while the public-facing plan suggests:
+
+```text
+titleHint: Os 10 melhores notebooks para comprar
+slugHint: melhores-notebooks
+sourceDisclosure: Produtos selecionados com base em rankings e dados disponíveis no Mercado Livre.
+```
+
+The first implementation is read-only for generation: the pipeline includes
+`editorialPlan` in its response, but the AI Generator and Publication Workflow
+continue using the current contracts until the next Editorial Intelligence
+phase.
+
 ## Admin
 
 The only routine operator screen is `Gerador de Rankings`.

@@ -2,6 +2,7 @@
 
 const { syncMarketplaceRankingByTerm } = require('./ranking-term-sync');
 const { generatePageFromRanking } = require('../../ai-generator');
+const { buildEditorialPlan } = require('../../editorial-intelligence/editorial-plan');
 const publicationWorkflow = require('../../publication-workflow');
 
 const DEFAULT_SITE_ID = 'MLB';
@@ -405,10 +406,11 @@ const buildEditorialRankingResult = (syncResult) => ({
   itemsUpdated: syncResult.editorialRanking?.itemsUpdated || 0,
 });
 
-const buildBaseResult = ({ syncResult, term, siteId, warnings, errors }) => ({
+const buildBaseResult = ({ syncResult, term, siteId, editorialPlan, warnings, errors }) => ({
   success: true,
   term: syncResult?.term || term,
   siteId,
+  editorialPlan,
   category: syncResult ? buildCategoryResult(syncResult) : {
     marketplaceCategoryId: null,
     marketplaceCategoryName: null,
@@ -489,6 +491,9 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     term,
     siteId = DEFAULT_SITE_ID,
     limit = DEFAULT_LIMIT,
+    editorialTemplate,
+    editorialIntent,
+    preferredSlug,
     autoGenerate = true,
     autoPublish = true,
   } = options;
@@ -498,10 +503,18 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     throw new Error('term is required');
   }
 
+  const editorialPlan = buildEditorialPlan({
+    term: normalizedTerm,
+    limit,
+    template: editorialTemplate,
+    editorialIntent,
+    preferredSlug,
+    sourceMarketplace: 'mercadoLivre',
+  });
   const syncResult = await syncMarketplaceRankingByTerm(strapi, {
     term: normalizedTerm,
     siteId,
-    limit,
+    limit: editorialPlan.productCount,
   });
   const warnings = [...(syncResult.warnings || [])];
   const errors = [...(syncResult.errors || [])];
@@ -509,6 +522,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     syncResult,
     term: normalizedTerm,
     siteId,
+    editorialPlan,
     warnings,
     errors,
   });
