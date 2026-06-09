@@ -3,6 +3,7 @@
 const { syncMarketplaceRankingByTerm } = require('./ranking-term-sync');
 const { generatePageFromRanking } = require('../../ai-generator');
 const { buildEditorialPlan } = require('../../editorial-intelligence/editorial-plan');
+const { findReusablePage } = require('../../editorial-intelligence/page-reuse-engine');
 const publicationWorkflow = require('../../publication-workflow');
 
 const DEFAULT_SITE_ID = 'MLB';
@@ -406,11 +407,20 @@ const buildEditorialRankingResult = (syncResult) => ({
   itemsUpdated: syncResult.editorialRanking?.itemsUpdated || 0,
 });
 
+const buildDefaultPageReuseResult = () => ({
+  found: false,
+  action: 'create-new',
+  pageId: null,
+  pageStatus: null,
+  reason: 'Page Reuse Engine was not evaluated yet',
+});
+
 const buildBaseResult = ({ syncResult, term, siteId, editorialPlan, warnings, errors }) => ({
   success: true,
   term: syncResult?.term || term,
   siteId,
   editorialPlan,
+  pageReuse: buildDefaultPageReuseResult(),
   category: syncResult ? buildCategoryResult(syncResult) : {
     marketplaceCategoryId: null,
     marketplaceCategoryName: null,
@@ -467,6 +477,17 @@ const withAiResult = (result, ai) => ({
   },
 });
 
+const withPageReuseResult = (result, pageReuse) => ({
+  ...result,
+  pageReuse: {
+    found: Boolean(pageReuse.found),
+    action: pageReuse.action || 'create-new',
+    pageId: pageReuse.pageId || null,
+    pageStatus: pageReuse.pageStatus || null,
+    reason: pageReuse.reason || null,
+  },
+});
+
 const withPublicationResult = (result, publication) => ({
   ...result,
   publication: {
@@ -479,6 +500,46 @@ const withPublicationResult = (result, publication) => ({
     validationErrors: publication.validationErrors || [],
   },
 });
+
+const buildReusedPageResult = async (strapi, result, pageReuse) => {
+  const page = await getPage(strapi, pageReuse.pageId);
+  const baseResult = withAiResult(withPageReuseResult(result, pageReuse), {
+    generated: false,
+    pageId: page?.id || pageReuse.pageId,
+    seoId: page?.seo?.id || null,
+    faqIds: (page?.faqs || []).map((faq) => faq.id),
+    aiGenerationLogId: null,
+  });
+
+  if (page?.status === 'published') {
+    const publicCheck = await verifyPublicAvailability(strapi, page);
+
+    return withPublicationResult(baseResult, {
+      attempted: false,
+      published: true,
+      requiresReview: false,
+      publicUrl: publicCheck.publicUrl,
+      publicEndpointStatus: publicCheck.endpointStatus,
+      sitemapIncluded: publicCheck.sitemapIncluded,
+      validationErrors: [],
+    });
+  }
+
+  return withPublicationResult(baseResult, {
+    attempted: false,
+    published: false,
+    requiresReview: true,
+    publicUrl: null,
+    publicEndpointStatus: null,
+    sitemapIncluded: false,
+    validationErrors: [
+      {
+        code: `pageReuse.${page?.status || 'unknown'}`,
+        message: pageReuse.reason || 'Reusable Page found before AI generation',
+      },
+    ],
+  });
+};
 
 const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   const { strapi, options } = resolvePipelineArgs(strapiOrOptions, maybeOptions);
@@ -511,13 +572,43 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     preferredSlug,
     sourceMarketplace: 'mercadoLivre',
   });
+  const warnings = [];
+  const errors = [];
+  const earlyPageReuse = await findReusablePage(strapi, {
+    term: normalizedTerm,
+    editorialPlan,
+    ranking: null,
+  });
+
+  if (earlyPageReuse.found) {
+    warnings.push({
+      step: 'page-reuse-engine',
+      message: earlyPageReuse.reason,
+      action: earlyPageReuse.action,
+      pageId: earlyPageReuse.pageId,
+    });
+
+    return buildReusedPageResult(
+      strapi,
+      buildBaseResult({
+        syncResult: null,
+        term: normalizedTerm,
+        siteId,
+        editorialPlan,
+        warnings,
+        errors,
+      }),
+      earlyPageReuse
+    );
+  }
+
   const syncResult = await syncMarketplaceRankingByTerm(strapi, {
     term: normalizedTerm,
     siteId,
     limit: editorialPlan.productCount,
   });
-  const warnings = [...(syncResult.warnings || [])];
-  const errors = [...(syncResult.errors || [])];
+  warnings.push(...(syncResult.warnings || []));
+  errors.push(...(syncResult.errors || []));
   const result = buildBaseResult({
     syncResult,
     term: normalizedTerm,
@@ -537,6 +628,22 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     rankingId,
     syncResult.resolvedCategory
   );
+  const pageReuse = await findReusablePage(strapi, {
+    term: normalizedTerm,
+    editorialPlan,
+    ranking: preGeneration.ranking,
+  });
+
+  if (pageReuse.found) {
+    warnings.push({
+      step: 'page-reuse-engine',
+      message: pageReuse.reason,
+      action: pageReuse.action,
+      pageId: pageReuse.pageId,
+    });
+
+    return buildReusedPageResult(strapi, result, pageReuse);
+  }
 
   if (preGeneration.ranking?.page?.status === 'published') {
     warnings.push({

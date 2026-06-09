@@ -14,6 +14,8 @@ Gerador de Rankings
 -> MarketplaceRanking/MarketplaceRankingEntry
 -> Product/AffiliateLink
 -> Ranking/RankingItem
+-> Editorial Plan
+-> Page Reuse Engine
 -> AI Generator
 -> Publication Workflow
 -> Page published or requires review
@@ -55,10 +57,35 @@ slugHint: melhores-notebooks
 sourceDisclosure: Produtos selecionados com base em rankings e dados disponíveis no Mercado Livre.
 ```
 
-The first implementation is read-only for generation: the pipeline includes
-`editorialPlan` in its response, but the AI Generator and Publication Workflow
-continue using the current contracts until the next Editorial Intelligence
-phase.
+The AI Generator receives this plan and uses it to guide public title, slug,
+SEO, FAQ, source disclosure and JSON-LD quantity.
+
+## Page Reuse Engine
+
+Before running AI, the pipeline checks whether the current editorial intent
+already has a reusable Page:
+
+```text
+Editorial Plan
+-> Page Reuse Engine
+-> AI Generator
+```
+
+Search order:
+
+- Ranking already linked to a Page;
+- exact `editorialPlan.slugHint`;
+- equivalent normalized editorial term for best-list intents.
+
+If the engine finds a published Page, the pipeline returns it with
+`pageReuse.action = reuse-published`, skips AI, skips Seo/Faq creation and does
+not call the Publication Workflow. Draft and review Pages are returned for
+review with `reuse-draft` or `reuse-review`, also without creating duplicates.
+
+Cost-benefit and comparison intents are intentionally not merged into generic
+`melhores-*` pages yet. They need the future Editorial Intent Engine to decide
+when pages such as `melhores-notebooks` and
+`melhores-notebooks-custo-beneficio` should remain separate.
 
 ## Admin
 
