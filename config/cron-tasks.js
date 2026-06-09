@@ -19,8 +19,4 @@ module.exports = {
         }
 
     },
-    
-    "*/15 * * * *": async ({ strapi }) => {
-
-    },
 };  

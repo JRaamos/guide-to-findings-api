@@ -446,6 +446,8 @@ const buildBaseResult = ({ syncResult, term, siteId, warnings, errors }) => ({
     published: false,
     requiresReview: false,
     publicUrl: null,
+    publicEndpointStatus: null,
+    sitemapIncluded: false,
     validationErrors: [],
   },
   warnings,
@@ -470,6 +472,8 @@ const withPublicationResult = (result, publication) => ({
     published: Boolean(publication.published),
     requiresReview: Boolean(publication.requiresReview),
     publicUrl: publication.publicUrl || null,
+    publicEndpointStatus: publication.publicEndpointStatus || null,
+    sitemapIncluded: Boolean(publication.sitemapIncluded),
     validationErrors: publication.validationErrors || [],
   },
 });
@@ -543,6 +547,8 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
         published: true,
         requiresReview: false,
         publicUrl: publicCheck.publicUrl,
+        publicEndpointStatus: publicCheck.endpointStatus,
+        sitemapIncluded: publicCheck.sitemapIncluded,
         validationErrors: [],
       }
     );
@@ -636,6 +642,8 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     published: published.status === 'published',
     requiresReview: published.status !== 'published',
     publicUrl: publicCheck.publicUrl,
+    publicEndpointStatus: publicCheck.endpointStatus,
+    sitemapIncluded: publicCheck.sitemapIncluded,
     validationErrors: [],
   });
 };

@@ -17,6 +17,8 @@ const toLegacyResult = (pipelineResult) => ({
   published: pipelineResult.publication.published,
   requiresReview: pipelineResult.publication.requiresReview,
   publicUrl: pipelineResult.publication.publicUrl,
+  publicEndpointStatus: pipelineResult.publication.publicEndpointStatus,
+  sitemapIncluded: pipelineResult.publication.sitemapIncluded,
   sync: {
     success: pipelineResult.success,
     term: pipelineResult.term,

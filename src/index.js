@@ -1,7 +1,6 @@
 'use strict';
 
 const { exportRolesPermissions, updateRolesPermissions } = require("./functions/roles");
-const { strapiSocket } = require("./functions/socket");
 
 module.exports = {
   /**
@@ -20,14 +19,9 @@ module.exports = {
    * run jobs, or perform some special logic.
    */
   bootstrap({ strapi }) {
-    beginsSocket(strapi)
     checkExportRoles()
   },
 };
-
-const beginsSocket = async strapi => {
-    await strapiSocket(strapi);
-}
 
 const checkExportRoles = async () => {
     if (process.env.EXPORT_ROLES === "true") {

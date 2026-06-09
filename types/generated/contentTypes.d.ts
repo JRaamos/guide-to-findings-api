@@ -632,48 +632,6 @@ export interface ApiClickEventClickEvent extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiDevicetokenDevicetoken extends Struct.CollectionTypeSchema {
-  collectionName: 'devicetokens';
-  info: {
-    description: '';
-    displayName: 'DeviceToken';
-    pluralName: 'devicetokens';
-    singularName: 'devicetoken';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  pluginOptions: {
-    'content-manager': {
-      visible: false;
-    };
-    'content-type-builder': {
-      visible: false;
-    };
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::devicetoken.devicetoken'
-    > &
-      Schema.Attribute.Private;
-    os: Schema.Attribute.Enumeration<['android', 'ios']>;
-    publishedAt: Schema.Attribute.DateTime;
-    token: Schema.Attribute.String;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
-      'oneToOne',
-      'plugin::users-permissions.user'
-    >;
-  };
-}
-
 export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   collectionName: 'faqs';
   info: {
@@ -878,50 +836,6 @@ export interface ApiMarketplaceMarketplace extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiNotificationNotification
-  extends Struct.CollectionTypeSchema {
-  collectionName: 'notifications';
-  info: {
-    description: '';
-    displayName: 'Notification';
-    pluralName: 'notifications';
-    singularName: 'notification';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  pluginOptions: {
-    'content-manager': {
-      visible: true;
-    };
-    'content-type-builder': {
-      visible: false;
-    };
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::notification.notification'
-    > &
-      Schema.Attribute.Private;
-    processed: Schema.Attribute.Boolean;
-    publishedAt: Schema.Attribute.DateTime;
-    text: Schema.Attribute.Text;
-    title: Schema.Attribute.String;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
-      'oneToOne',
-      'plugin::users-permissions.user'
-    >;
-  };
-}
-
 export interface ApiPagePage extends Struct.CollectionTypeSchema {
   collectionName: 'pages';
   info: {
@@ -1041,42 +955,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-  };
-}
-
-export interface ApiProfileProfile extends Struct.CollectionTypeSchema {
-  collectionName: 'profiles';
-  info: {
-    displayName: 'Profile';
-    pluralName: 'profiles';
-    singularName: 'profile';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    address: Schema.Attribute.Component<'user.address', false>;
-    cpf: Schema.Attribute.String & Schema.Attribute.Unique;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    image: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::profile.profile'
-    > &
-      Schema.Attribute.Private;
-    name: Schema.Attribute.String;
-    phone: Schema.Attribute.String;
-    publishedAt: Schema.Attribute.DateTime;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
-      'oneToOne',
-      'plugin::users-permissions.user'
-    >;
   };
 }
 
@@ -1264,43 +1142,6 @@ export interface ApiSubCategorySubCategory extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-  };
-}
-
-export interface ApiSupportSupport extends Struct.CollectionTypeSchema {
-  collectionName: 'supports';
-  info: {
-    displayName: 'Support';
-    pluralName: 'supports';
-    singularName: 'support';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    answer: Schema.Attribute.Text;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    description: Schema.Attribute.Text;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::support.support'
-    > &
-      Schema.Attribute.Private;
-    publishedAt: Schema.Attribute.DateTime;
-    support_status: Schema.Attribute.Enumeration<
-      ['opened', 'answered', 'closed']
-    >;
-    title: Schema.Attribute.String;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
-      'oneToOne',
-      'plugin::users-permissions.user'
-    >;
   };
 }
 
@@ -1760,6 +1601,7 @@ export interface PluginUsersPermissionsUser
   };
   options: {
     draftAndPublish: false;
+    timestamps: true;
   };
   attributes: {
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
@@ -1784,7 +1626,6 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    profile: Schema.Attribute.Relation<'oneToOne', 'api::profile.profile'>;
     provider: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
@@ -1819,20 +1660,16 @@ declare module '@strapi/strapi' {
       'api::ai-generation-log.ai-generation-log': ApiAiGenerationLogAiGenerationLog;
       'api::category.category': ApiCategoryCategory;
       'api::click-event.click-event': ApiClickEventClickEvent;
-      'api::devicetoken.devicetoken': ApiDevicetokenDevicetoken;
       'api::faq.faq': ApiFaqFaq;
       'api::marketplace-ranking-entry.marketplace-ranking-entry': ApiMarketplaceRankingEntryMarketplaceRankingEntry;
       'api::marketplace-ranking.marketplace-ranking': ApiMarketplaceRankingMarketplaceRanking;
       'api::marketplace.marketplace': ApiMarketplaceMarketplace;
-      'api::notification.notification': ApiNotificationNotification;
       'api::page.page': ApiPagePage;
       'api::product.product': ApiProductProduct;
-      'api::profile.profile': ApiProfileProfile;
       'api::ranking-item.ranking-item': ApiRankingItemRankingItem;
       'api::ranking.ranking': ApiRankingRanking;
       'api::seo.seo': ApiSeoSeo;
       'api::sub-category.sub-category': ApiSubCategorySubCategory;
-      'api::support.support': ApiSupportSupport;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

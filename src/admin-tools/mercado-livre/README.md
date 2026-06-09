@@ -1,29 +1,32 @@
-# Mercado Livre Admin Tool
+# Gerador de Rankings Admin Tool
 
-Administrative tool for Mercado Livre search and import inside Strapi Admin.
+Official Strapi Admin entrypoint for the Mercado Livre ranking pipeline.
 
-The V1 admin screen is registered in the Strapi Admin menu as "Mercado Livre"
-and lives in:
+The admin screen lives in:
 
 ```text
 src/admin/admin/MercadoLivrePage/
 src/admin/app.js
 ```
 
-The working integration remains in:
+It calls one internal backend endpoint:
 
 ```text
-src/services/marketplaces/mercado-livre/
-src/api/mercado-livre/
+POST /api/internal/marketplaces/mercado-livre/ranking-chat
 ```
 
-The admin screen calls the internal Strapi endpoints and does not call Mercado
-Livre directly from the browser:
+The endpoint runs:
 
 ```text
-POST /api/internal/marketplaces/mercado-livre/search
-POST /api/internal/marketplaces/mercado-livre/import
+term
+-> Mercado Livre category resolver
+-> local Category/SubCategory
+-> MarketplaceRanking/MarketplaceRankingEntry
+-> Product/AffiliateLink
+-> Ranking/RankingItem
+-> AI Generator
+-> Publication Workflow
+-> Page published or requires review
 ```
 
-Future plugin work should keep reusing the existing service layer for search,
-normalization and idempotent import.
+Manual search/import and manual ranking creation are not official admin flows.

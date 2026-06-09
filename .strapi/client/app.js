@@ -4,7 +4,6 @@
  */
 import documentation from "@strapi/plugin-documentation/strapi-admin";
 import usersPermissions from "@strapi/plugin-users-permissions/strapi-admin";
-import strapiGoogleAnalyticsDashboard from "strapi-google-analytics-dashboard/strapi-admin";
 import { renderAdmin } from "@strapi/strapi/admin";
 
 import customisations from "../../src/admin/app.js";
@@ -15,6 +14,5 @@ renderAdmin(document.getElementById("strapi"), {
   plugins: {
     documentation: documentation,
     "users-permissions": usersPermissions,
-    "strapi-google-analytics-dashboard": strapiGoogleAnalyticsDashboard,
   },
 });

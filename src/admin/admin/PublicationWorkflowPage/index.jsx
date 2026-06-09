@@ -117,7 +117,7 @@ const PublicationWorkflowPage = () => {
       const response = await get(PAGES_ENDPOINT);
       setPages(Array.isArray(response.data?.pages) ? response.data.pages : []);
     } catch (error) {
-      setErrorMessage('Nao foi possivel carregar as paginas para publicacao.');
+      setErrorMessage('Nao foi possivel carregar as paginas que precisam de revisao.');
     } finally {
       setIsLoadingPages(false);
     }
@@ -326,10 +326,10 @@ const PublicationWorkflowPage = () => {
         <Flex direction="column" alignItems="stretch" gap={6}>
           <Flex direction="column" alignItems="flex-start" gap={2}>
             <Typography variant="alpha" id="publication-workflow-title">
-              Publication Workflow
+              Revisoes Necessarias
             </Typography>
             <Typography variant="epsilon" textColor="neutral600">
-              Revise Page, Seo e Faqs antes de aprovar e publicar conteudo.
+              Revise somente as Pages que o gerador automatico manteve em draft.
             </Typography>
           </Flex>
 
@@ -367,7 +367,7 @@ const PublicationWorkflowPage = () => {
               <Flex direction="column" alignItems="stretch" gap={4}>
                 <Flex justifyContent="space-between" alignItems="center" gap={4}>
                   <Flex direction="column" alignItems="flex-start" gap={1}>
-                    <Typography variant="beta">Paginas em workflow</Typography>
+                    <Typography variant="beta">Fila de revisao</Typography>
                     <Typography variant="pi" textColor="neutral600">
                       {pages.length} pagina(s) encontrada(s)
                     </Typography>
@@ -404,7 +404,7 @@ const PublicationWorkflowPage = () => {
                 {!isLoadingPages && !pages.length ? (
                   <Box padding={5} background="neutral100" hasRadius>
                     <Typography textColor="neutral600">
-                      Nenhuma pagina draft ou review encontrada.
+                      Nenhuma pagina aguardando revisao.
                     </Typography>
                   </Box>
                 ) : null}
@@ -450,7 +450,7 @@ const PublicationWorkflowPage = () => {
               {!currentPage ? (
                 <Box padding={5} background="neutral100" hasRadius>
                   <Typography textColor="neutral600">
-                    Carregue uma pagina da lista ou informe um pageId para revisar.
+                    Carregue uma pagina da fila ou informe um pageId para revisar.
                   </Typography>
                 </Box>
               ) : (
