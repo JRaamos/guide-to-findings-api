@@ -4,8 +4,8 @@ require('dotenv').config();
 
 const { createStrapi } = require('@strapi/strapi');
 const {
-  syncGenerateAndPublishMarketplaceRanking,
-} = require('../src/services/marketplaces/mercado-livre/ranking-auto-publish');
+  runMarketplacePipeline,
+} = require('../src/services/marketplaces/mercado-livre/marketplace-pipeline');
 
 const DEFAULT_SITE_ID = 'MLB';
 const DEFAULT_TERM = 'furadeira';
@@ -53,9 +53,10 @@ const main = async () => {
 
   try {
     const beforeCounts = await countModels(app);
-    const result = await syncGenerateAndPublishMarketplaceRanking(app, {
+    const result = await runMarketplacePipeline(app, {
       term,
       siteId,
+      autoGenerate: true,
       autoPublish: true,
     });
     const afterCounts = await countModels(app);
