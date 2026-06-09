@@ -43,7 +43,7 @@ const findMarketplaceRanking = (strapi, { marketplaceRankingId, siteId, category
       where: {
         id: marketplaceRankingId,
       },
-      populate: ['editorialRanking'],
+      populate: ['editorialRanking', 'category', 'subCategory'],
     });
   }
 
@@ -53,7 +53,7 @@ const findMarketplaceRanking = (strapi, { marketplaceRankingId, siteId, category
       siteId,
       externalCategoryId: categoryId,
     },
-    populate: ['editorialRanking'],
+    populate: ['editorialRanking', 'category', 'subCategory'],
   });
 };
 
@@ -113,6 +113,14 @@ const upsertEditorialRanking = async (strapi, marketplaceRanking) => {
     rankingType: existing?.rankingType || DEFAULT_RANKING_TYPE,
     status: existing?.status || DEFAULT_RANKING_STATUS,
   };
+
+  if (marketplaceRanking.category?.id) {
+    data.category = marketplaceRanking.category.id;
+  }
+
+  if (marketplaceRanking.subCategory?.id) {
+    data.subCategory = marketplaceRanking.subCategory.id;
+  }
 
   if (existing) {
     const record = await query(strapi, uid.ranking).update({

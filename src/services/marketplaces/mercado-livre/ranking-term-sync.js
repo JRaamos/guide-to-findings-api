@@ -1,6 +1,9 @@
 'use strict';
 
 const { resolveMarketplaceCategory } = require('./category-resolver');
+const {
+  syncLocalCategoriesFromMarketplaceCategory,
+} = require('./category-sync');
 const { syncMarketplaceRanking } = require('./ranking-sync');
 const { syncMarketplaceRankingProducts } = require('./ranking-product-sync');
 const { syncMarketplaceRankingEditorial } = require('./ranking-editorial-sync');
@@ -79,6 +82,11 @@ const syncMarketplaceRankingByTerm = async (
     );
   }
 
+  const localCategoryResult = await syncLocalCategoriesFromMarketplaceCategory(strapi, {
+    term: normalizedTerm,
+    resolvedCategory: category,
+  });
+
   const marketplaceRankingResult = await syncMarketplaceRanking(strapi, {
     siteId,
     categoryId: category.id,
@@ -88,6 +96,8 @@ const syncMarketplaceRankingByTerm = async (
     }),
     externalCategoryName: category.name,
     limit,
+    localCategoryId: localCategoryResult.categoryId,
+    localSubCategoryId: localCategoryResult.subCategoryId,
   });
 
   if ((marketplaceRankingResult.totalPublishable || 0) < MINIMUM_PUBLISHABLE_PRODUCTS) {
@@ -100,6 +110,8 @@ const syncMarketplaceRankingByTerm = async (
     siteId,
     categoryId: category.id,
     marketplaceRankingId: marketplaceRankingResult.marketplaceRankingId,
+    localCategoryId: localCategoryResult.categoryId,
+    localSubCategoryId: localCategoryResult.subCategoryId,
   });
 
   if ((productResult.importedProducts || 0) < MINIMUM_PUBLISHABLE_PRODUCTS) {
@@ -128,6 +140,7 @@ const syncMarketplaceRankingByTerm = async (
     term: normalizedTerm,
     siteId,
     resolvedCategory: buildResolvedCategory(category),
+    localCategory: localCategoryResult,
     marketplaceRanking: {
       id: marketplaceRankingResult.marketplaceRankingId,
       createdEntries: marketplaceRankingResult.createdEntries,

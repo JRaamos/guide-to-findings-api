@@ -261,7 +261,16 @@ const upsertEntries = async (strapi, marketplaceRanking, entries, syncedAt) => {
 
 const syncMarketplaceRanking = async (
   strapi,
-  { siteId = DEFAULT_SITE_ID, categoryId, title, externalCategoryName, sourceUrl, limit = DEFAULT_LIMIT } = {}
+  {
+    siteId = DEFAULT_SITE_ID,
+    categoryId,
+    title,
+    externalCategoryName,
+    sourceUrl,
+    limit = DEFAULT_LIMIT,
+    localCategoryId,
+    localSubCategoryId,
+  } = {}
 ) => {
   if (!strapi?.db) {
     throw new Error('strapi instance is required');
@@ -299,6 +308,15 @@ const syncMarketplaceRanking = async (
     publishableRate: enrichmentResult.publishableRate,
     contentFingerprint,
   };
+
+  if (localCategoryId) {
+    rankingData.category = localCategoryId;
+  }
+
+  if (localSubCategoryId) {
+    rankingData.subCategory = localSubCategoryId;
+  }
+
   const marketplaceRanking = await upsertMarketplaceRanking(strapi, rankingData, existing);
   const entryCounts = await upsertEntries(strapi, marketplaceRanking, entries, syncedAt);
 

@@ -97,12 +97,20 @@ const serializeRankingItem = (item, marketplaceEntryByProductId) => {
 };
 
 const getCategoryFromRanking = (ranking) => {
+  if (ranking.category) {
+    return ranking.category;
+  }
+
   const itemWithCategory = (ranking.items || []).find((item) => item.product?.category);
 
   return itemWithCategory?.product?.category || null;
 };
 
 const getSubCategoryFromRanking = (ranking) => {
+  if (ranking.subCategory) {
+    return ranking.subCategory;
+  }
+
   const itemWithSubCategory = (ranking.items || []).find((item) => item.product?.subCategory);
 
   return itemWithSubCategory?.product?.subCategory || null;
@@ -171,6 +179,8 @@ const buildRankingContext = async (strapi, rankingId) => {
     where: { id },
     populate: {
       page: true,
+      category: true,
+      subCategory: true,
       items: {
         populate: {
           product: {

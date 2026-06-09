@@ -91,6 +91,16 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::ranking.ranking"
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "subCategory": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::sub-category.sub-category"
     }
   }
 }

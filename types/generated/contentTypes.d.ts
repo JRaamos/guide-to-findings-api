@@ -787,6 +787,7 @@ export interface ApiMarketplaceRankingMarketplaceRanking
     draftAndPublish: false;
   };
   attributes: {
+    category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
     contentFingerprint: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -824,6 +825,10 @@ export interface ApiMarketplaceRankingMarketplaceRanking
       ['active', 'paused', 'error', 'archived']
     > &
       Schema.Attribute.DefaultTo<'active'>;
+    subCategory: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::sub-category.sub-category'
+    >;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     totalEnriched: Schema.Attribute.Integer;
     totalHighlights: Schema.Attribute.Integer;
@@ -1131,6 +1136,7 @@ export interface ApiRankingRanking extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    category: Schema.Attribute.Relation<'manyToOne', 'api::category.category'>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1161,6 +1167,10 @@ export interface ApiRankingRanking extends Struct.CollectionTypeSchema {
       ['draft', 'review', 'published', 'archived']
     > &
       Schema.Attribute.DefaultTo<'draft'>;
+    subCategory: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::sub-category.sub-category'
+    >;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

@@ -66,6 +66,16 @@
       "target": "api::page.page",
       "inversedBy": "ranking"
     },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "subCategory": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::sub-category.sub-category"
+    },
     "items": {
       "type": "relation",
       "relation": "oneToMany",

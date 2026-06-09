@@ -18,6 +18,7 @@ The new private technical flow is:
 ```text
 free text term
 -> Mercado Livre category resolver
+-> Category / SubCategory
 -> Mercado Livre /highlights
 -> marketplace ranking enrichment
 -> MarketplaceRanking
@@ -83,8 +84,9 @@ yarn sync:ml:term "furadeira"
 ```
 
 This command resolves a free text term to a Mercado Livre category using
-`domain_discovery`, validates that the category has enough `/highlights`, then
-runs the existing technical sync, product bridge and editorial ranking bridge.
+`domain_discovery`, creates or reuses local `Category` and `SubCategory`,
+validates that the category has enough `/highlights`, then runs the existing
+technical sync, product bridge and editorial ranking bridge.
 
 It stops at draft `Ranking` and `RankingItem`. It does not create `Page`, `Seo`
 or `Faq`, and it does not call the AI generator or publication workflow.
@@ -92,6 +94,31 @@ or `Faq`, and it does not call the AI generator or publication workflow.
 If enrichment returns fewer than 10 publishable products, the command stops
 before the product and editorial bridges. The technical `MarketplaceRanking`
 state can still exist for auditing and debugging.
+
+## Local Category Sync
+
+The term flow maps the resolved Mercado Livre category path to existing local
+taxonomy before syncing products or editorial rankings.
+
+Rule:
+
+- `Category`: first segment of the Mercado Livre path.
+- `SubCategory`: deepest path segment that matches the original term. If none
+  matches, use the resolved leaf unless it is too generic, then use the
+  previous path segment.
+
+Example:
+
+```text
+Ferramentas > Ferramentas Elétricas > Perfuração > Furadeiras > De Mão
+-> Category: Ferramentas
+-> SubCategory: Furadeiras
+```
+
+Local taxonomy is idempotent by slug. Existing records are reused and kept
+active. The resulting local category IDs are attached to `MarketplaceRanking`,
+imported `Product` records and the draft editorial `Ranking`, allowing the AI
+Generator to persist the generated `Page` with valid taxonomy.
 
 ## Controlled Auto Publish
 
@@ -141,10 +168,9 @@ ranking item editorial text is preserved when positions are refreshed.
 - There is no cron.
 - There is no public endpoint.
 - There is no admin UI.
-- There is no bridge to `Page`.
 - `soldQuantity` is usually unavailable from the current enrichment path.
 
 ## Next Phase
 
-The next phase should call the existing AI Generator for a draft `Ranking`
-selected by the editor. It should still avoid automatic publication.
+The next phase should decide how this manually triggered pipeline becomes an
+operational workflow, including scheduling, editor controls and monitoring.

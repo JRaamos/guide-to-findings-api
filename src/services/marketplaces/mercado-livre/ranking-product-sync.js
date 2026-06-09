@@ -7,6 +7,8 @@ const {
 const uid = {
   marketplaceRanking: 'api::marketplace-ranking.marketplace-ranking',
   marketplaceRankingEntry: 'api::marketplace-ranking-entry.marketplace-ranking-entry',
+  category: 'api::category.category',
+  subCategory: 'api::sub-category.sub-category',
 };
 
 const MARKETPLACE = 'mercado-livre';
@@ -24,6 +26,7 @@ const findMarketplaceRanking = (strapi, { marketplaceRankingId, siteId, category
       where: {
         id: marketplaceRankingId,
       },
+      populate: ['category', 'subCategory'],
     });
   }
 
@@ -33,6 +36,7 @@ const findMarketplaceRanking = (strapi, { marketplaceRankingId, siteId, category
       siteId,
       externalCategoryId: categoryId,
     },
+    populate: ['category', 'subCategory'],
   });
 };
 
@@ -91,6 +95,24 @@ const mapEntryToProduct = (entry) => ({
     marketplaceRankingPosition: entry.position,
   },
 });
+
+const getOptionalRelation = async (strapi, modelUid, id, label) => {
+  if (!id) {
+    return null;
+  }
+
+  const relation = await query(strapi, modelUid).findOne({
+    where: {
+      id,
+    },
+  });
+
+  if (!relation) {
+    throw new Error(`${label} not found`);
+  }
+
+  return relation;
+};
 
 const buildImportPayload = (entries) => {
   const products = [];
@@ -169,7 +191,13 @@ const linkEntriesToProducts = async (strapi, importedProducts) => {
 
 const syncMarketplaceRankingProducts = async (
   strapi,
-  { siteId = DEFAULT_SITE_ID, categoryId, marketplaceRankingId } = {}
+  {
+    siteId = DEFAULT_SITE_ID,
+    categoryId,
+    marketplaceRankingId,
+    localCategoryId,
+    localSubCategoryId,
+  } = {}
 ) => {
   if (!strapi?.db) {
     throw new Error('strapi instance is required');
@@ -191,8 +219,23 @@ const syncMarketplaceRankingProducts = async (
 
   const entries = await findMarketplaceRankingEntries(strapi, marketplaceRanking.id);
   const { products, skipped } = buildImportPayload(entries);
+  const localCategory = await getOptionalRelation(
+    strapi,
+    uid.category,
+    localCategoryId || marketplaceRanking.category?.id,
+    'localCategoryId'
+  );
+  const localSubCategory = await getOptionalRelation(
+    strapi,
+    uid.subCategory,
+    localSubCategoryId || marketplaceRanking.subCategory?.id,
+    'localSubCategoryId'
+  );
   const importResult = products.length
-    ? await importNormalizedMarketplaceProducts(strapi, products)
+    ? await importNormalizedMarketplaceProducts(strapi, products, {
+        category: localCategory,
+        subCategory: localSubCategory,
+      })
     : {
         success: true,
         imported: 0,
