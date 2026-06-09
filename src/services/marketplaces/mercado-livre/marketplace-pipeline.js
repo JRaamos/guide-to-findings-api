@@ -579,6 +579,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
 
   const generated = await generatePageFromRanking(strapi, {
     rankingId,
+    editorialPlan,
   });
   const generatedResult = withAiResult(result, {
     generated: true,

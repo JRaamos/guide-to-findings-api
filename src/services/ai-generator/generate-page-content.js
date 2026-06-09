@@ -136,8 +136,13 @@ const RELATIVE_TEMPORAL_PATTERNS = [
   /\btemporada\s+atual\b/gi,
   /\b(?:ranking|guia|comparativo|melhor|melhores)\s+(?:do|da|de|para|em)\s+ano\b/gi,
 ];
+const MARKETPLACE_TEXT_PATTERN = /\bmercado\s+livre\b|\bmercadolivre\b|\bmlb\b/gi;
 
 const stripHtml = (value = '') => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
   return value.toString().replace(/<[^>]*>/g, ' ');
 };
 
@@ -160,6 +165,18 @@ const normalizeComparableText = (value = '') => {
     .toLowerCase();
 };
 
+const getEditorialPlan = (rankingContext) => {
+  return rankingContext.editorialPlan || null;
+};
+
+const getEditorialProductCount = (rankingContext) => {
+  return getEditorialPlan(rankingContext)?.productCount || rankingContext.products?.length || 0;
+};
+
+const cleanMarketplaceText = (value = '') => {
+  return normalizeWhitespace(value).replace(MARKETPLACE_TEXT_PATTERN, '').replace(/\s{2,}/g, ' ').trim();
+};
+
 const trimAtWord = (value = '', maxLength) => {
   const text = normalizeWhitespace(value);
 
@@ -174,6 +191,10 @@ const trimAtWord = (value = '', maxLength) => {
     .slice(0, lastSpace > 20 ? lastSpace : maxLength)
     .trim()
     .replace(/[.,;:!?-]+$/g, '');
+};
+
+const removeDanglingPreposition = (value = '') => {
+  return value.replace(/\s+\b(?:de|do|da|dos|das|para|com|em|no|na)$/i, '').trim();
 };
 
 const getItemName = (item) => {
@@ -365,13 +386,21 @@ const hasGenericIntro = (value = '') => {
 };
 
 const buildFallbackIntroduction = (rankingContext) => {
-  const rankingTitle = normalizeWhitespace(rankingContext.ranking?.title) || 'este ranking';
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const rankingTitle =
+    normalizeWhitespace(editorialPlan?.titleHint) ||
+    normalizeWhitespace(rankingContext.ranking?.title) ||
+    'este ranking';
   const categoryName = normalizeWhitespace(rankingContext.category?.name);
   const buyerContext = categoryName
     ? `para compras na categoria ${categoryName}`
     : 'para apoiar a decisao de compra';
+  const sourceDisclosure = normalizeWhitespace(editorialPlan?.sourceDisclosure);
 
-  return `${rankingTitle} organiza os produtos pela ordem editorial do ranking ${buyerContext}. A proposta e mostrar rapidamente quais opcoes tendem a fazer mais sentido para diferentes perfis de comprador, usando apenas os dados disponiveis dos produtos, do marketplace e dos criterios definidos pelo editor.`;
+  return [
+    `${rankingTitle} organiza os produtos pela ordem editorial do ranking ${buyerContext}. A proposta e mostrar rapidamente quais opcoes tendem a fazer mais sentido para diferentes perfis de comprador, usando apenas os dados disponiveis dos produtos e dos criterios definidos pelo editor.`,
+    sourceDisclosure,
+  ].filter(Boolean).join(' ');
 };
 
 const buildFallbackTopPicks = (rankingContext) => {
@@ -431,12 +460,17 @@ const buildTopPicksSection = (topPicks) => {
 };
 
 const buildEditorialIntro = (content, topPicks, rankingContext) => {
+  const sourceDisclosure = normalizeWhitespace(getEditorialPlan(rankingContext)?.sourceDisclosure);
   const introduction = normalizeLongText(content.introduction);
   const effectiveIntroduction = hasGenericIntro(introduction)
     ? buildFallbackIntroduction(rankingContext)
     : introduction;
+  const introductionWithDisclosure =
+    sourceDisclosure && !normalizeComparableText(effectiveIntroduction).includes(normalizeComparableText(sourceDisclosure))
+      ? `${effectiveIntroduction}\n\n${sourceDisclosure}`
+      : effectiveIntroduction;
   const sections = [
-    effectiveIntroduction,
+    introductionWithDisclosure,
     buildTopPicksSection(topPicks),
     content.comparison ? `Comparativo rapido\n${normalizeLongText(content.comparison)}` : null,
     content.methodology ? `Como avaliamos\n${normalizeLongText(content.methodology)}` : null,
@@ -446,6 +480,12 @@ const buildEditorialIntro = (content, topPicks, rankingContext) => {
 };
 
 const buildFallbackFocusKeyword = (rankingContext) => {
+  const editorialFocusKeyword = normalizeWhitespace(getEditorialPlan(rankingContext)?.focusKeyword);
+
+  if (editorialFocusKeyword) {
+    return editorialFocusKeyword;
+  }
+
   const rankingTitle = normalizeWhitespace(rankingContext.ranking?.title);
   const categoryName = normalizeWhitespace(rankingContext.category?.name);
   const productName = normalizeWhitespace(getPrimaryProductName(rankingContext));
@@ -453,25 +493,62 @@ const buildFallbackFocusKeyword = (rankingContext) => {
   return [rankingTitle, categoryName, productName].filter(Boolean).join(' ');
 };
 
-const normalizeMetaTitle = (value, rankingContext) => {
-  const rankingTitle = normalizeWhitespace(rankingContext.ranking?.title);
-  const categoryName = normalizeWhitespace(rankingContext.category?.name);
-  let title = normalizeWhitespace(value) || rankingTitle;
+const normalizeTitle = (value, rankingContext) => {
+  const titleHint = normalizeWhitespace(getEditorialPlan(rankingContext)?.titleHint);
 
-  if (title.length < SEO_TITLE_MIN_LENGTH && categoryName && !title.includes(categoryName)) {
-    title = `${title}: guia de ${categoryName}`;
+  return titleHint || normalizeWhitespace(value);
+};
+
+const normalizeMetaTitle = (value, rankingContext) => {
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const titleHint = normalizeWhitespace(editorialPlan?.titleHint);
+  const rankingTitle = normalizeWhitespace(rankingContext.ranking?.title);
+  let title = cleanMarketplaceText(titleHint || value || rankingTitle);
+
+  if (titleHint && title.length < SEO_TITLE_MIN_LENGTH) {
+    title = `${title}: guia de compra`;
+  } else if (title.length < SEO_TITLE_MIN_LENGTH) {
+    const categoryName = normalizeWhitespace(rankingContext.category?.name);
+
+    if (categoryName && !title.includes(categoryName)) {
+      title = `${title}: guia de ${categoryName}`;
+    }
   }
 
   if (title.length < SEO_TITLE_MIN_LENGTH) {
     title = `${title} para comparar e comprar melhor`;
   }
 
-  return trimAtWord(title, SEO_TITLE_MAX_LENGTH);
+  return removeDanglingPreposition(trimAtWord(title, SEO_TITLE_MAX_LENGTH));
 };
 
-const normalizeMetaDescription = (value, content) => {
+const buildEditorialMetaDescription = (rankingContext) => {
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const productCount = getEditorialProductCount(rankingContext);
+  const focusKeyword = normalizeWhitespace(editorialPlan?.focusKeyword);
+  const titleHint = normalizeWhitespace(editorialPlan?.titleHint);
+
+  if (!editorialPlan) {
+    return '';
+  }
+
+  if (editorialPlan.intent === 'costBenefit') {
+    return `Compare ${productCount} opções de ${focusKeyword}, veja destaques, limites, diferenças de uso e escolha o produto que combina melhor com seu perfil de compra.`;
+  }
+
+  if (editorialPlan.intent === 'comparison') {
+    return `Compare ${productCount} opções do ranking, entenda diferenças entre produtos, veja pontos fortes e escolha a alternativa mais adequada para sua compra.`;
+  }
+
+  return `Compare ${productCount} opções de ${focusKeyword || titleHint.toLowerCase()}, veja pontos fortes, limitações, diferenças de uso e escolha com mais segurança antes da compra online.`;
+};
+
+const normalizeMetaDescription = (value, content, rankingContext) => {
+  const editorialPlan = getEditorialPlan(rankingContext);
   const excerpt = normalizeWhitespace(content.excerpt);
-  let description = normalizeWhitespace(value) || excerpt;
+  let description = editorialPlan
+    ? buildEditorialMetaDescription(rankingContext)
+    : cleanMarketplaceText(value) || excerpt;
 
   if (description.length < SEO_DESCRIPTION_MIN_LENGTH) {
     description = `${description} Compare opcoes do ranking, veja pontos fortes, limitacoes e escolha com mais seguranca.`;
@@ -482,17 +559,24 @@ const normalizeMetaDescription = (value, content) => {
 
 const normalizeKeywords = (keywords, rankingContext) => {
   const temporalContext = getAllowedTemporalContext(rankingContext);
-  const candidates = [
-    ...(Array.isArray(keywords) ? keywords : []),
-    rankingContext.ranking?.title,
-    rankingContext.category?.name,
-    rankingContext.subCategory?.name,
-    getPrimaryProductName(rankingContext),
-  ];
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const candidates = editorialPlan
+    ? [
+        editorialPlan.focusKeyword,
+        ...(Array.isArray(editorialPlan.secondaryKeywords) ? editorialPlan.secondaryKeywords : []),
+        ...(Array.isArray(keywords) ? keywords : []),
+      ]
+    : [
+        ...(Array.isArray(keywords) ? keywords : []),
+        rankingContext.ranking?.title,
+        rankingContext.category?.name,
+        rankingContext.subCategory?.name,
+        getPrimaryProductName(rankingContext),
+      ];
   const normalized = [];
 
   for (const keyword of candidates) {
-    const value = normalizeWhitespace(keyword).toLowerCase();
+    const value = cleanMarketplaceText(keyword).toLowerCase();
     const guardedValue = sanitizeTemporalText(value, temporalContext);
 
     if (guardedValue && !normalized.includes(guardedValue)) {
@@ -503,10 +587,32 @@ const normalizeKeywords = (keywords, rankingContext) => {
   return normalized.slice(0, 8);
 };
 
-const normalizeFaqs = (faqs) => {
+const buildFallbackFaqs = (rankingContext) => {
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const focusKeyword = normalizeWhitespace(editorialPlan?.focusKeyword) || 'produto';
+  const normalizedFocusKeyword = focusKeyword.replace(/^melhores?\s+/i, '');
+  const singularKeyword = normalizedFocusKeyword.replace(/s$/i, '');
+
+  return [
+    {
+      question: `Qual ${singularKeyword} comprar?`,
+      answer: `A melhor escolha depende do seu uso, do orçamento e dos recursos que aparecem nos produtos do ranking. Compare preço, disponibilidade, marca, avaliações quando existirem e a posição de cada item antes de decidir.`,
+    },
+    {
+      question: `Como escolher ${normalizedFocusKeyword}?`,
+      answer: 'Observe se o produto atende ao seu uso principal, compare os diferenciais descritos, veja limitações e evite decidir apenas pelo preço quando houver diferenças importantes entre os itens.',
+    },
+    {
+      question: `${singularKeyword} custo-benefício vale a pena?`,
+      answer: 'Vale a pena quando o produto entrega os recursos necessários por um preço competitivo dentro do ranking. Ainda assim, confira disponibilidade, reputação e características essenciais antes da compra.',
+    },
+  ];
+};
+
+const normalizeFaqs = (faqs, rankingContext) => {
   const seenQuestions = new Set();
 
-  return faqs
+  const normalizedFaqs = faqs
     .map((faq) => ({
       question: normalizeWhitespace(faq.question),
       answer: normalizeLongText(faq.answer),
@@ -523,6 +629,15 @@ const normalizeFaqs = (faqs) => {
       return true;
     })
     .slice(0, 6);
+
+  if (normalizedFaqs.length >= 3) {
+    return normalizedFaqs;
+  }
+
+  return normalizeFaqs([...normalizedFaqs, ...buildFallbackFaqs(rankingContext)], {
+    ...rankingContext,
+    editorialPlan: null,
+  }).slice(0, 6);
 };
 
 const normalizeGeneratedContent = (content, rankingContext) => {
@@ -530,7 +645,7 @@ const normalizeGeneratedContent = (content, rankingContext) => {
   const introduction = buildEditorialIntro(content, topPicks, rankingContext);
   const seo = {
     metaTitle: normalizeMetaTitle(content.seo.metaTitle, rankingContext),
-    metaDescription: normalizeMetaDescription(content.seo.metaDescription, content),
+    metaDescription: normalizeMetaDescription(content.seo.metaDescription, content, rankingContext),
     focusKeyword:
       normalizeWhitespace(content.seo.focusKeyword) || buildFallbackFocusKeyword(rankingContext),
     secondaryKeywords: normalizeKeywords(content.seo.secondaryKeywords, rankingContext),
@@ -538,7 +653,7 @@ const normalizeGeneratedContent = (content, rankingContext) => {
 
   const normalizedContent = {
     ...content,
-    title: normalizeWhitespace(content.title),
+    title: normalizeTitle(content.title, rankingContext),
     excerpt: trimAtWord(content.excerpt, 220),
     introduction,
     summary: normalizeLongText(content.summary),
@@ -547,8 +662,12 @@ const normalizeGeneratedContent = (content, rankingContext) => {
     methodology: normalizeLongText(content.methodology),
     conclusion: normalizeLongText(content.conclusion),
     seo,
-    faqs: normalizeFaqs(content.faqs),
+    faqs: normalizeFaqs(content.faqs, rankingContext),
   };
+
+  if (getEditorialPlan(rankingContext)?.focusKeyword) {
+    normalizedContent.seo.focusKeyword = getEditorialPlan(rankingContext).focusKeyword;
+  }
 
   return applyTemporalGuardrails(normalizedContent, rankingContext);
 };
@@ -570,22 +689,38 @@ const buildSystemPrompt = () => {
 };
 
 const buildUserPrompt = (rankingContext) => {
-  const productCount = rankingContext.products?.length || 0;
+  const editorialPlan = getEditorialPlan(rankingContext);
+  const productCount = getEditorialProductCount(rankingContext);
 
   return [
     'Gere uma versao V2 do rascunho editorial para Page draft, Seo draft e Faq draft com base no contexto abaixo.',
     'O conteudo sera revisado por um editor antes da publicacao.',
     'Objetivo editorial: ajudar o leitor a decidir qual produto faz mais sentido para seu perfil de compra.',
     `Use somente os ${productCount} produtos informados e mantenha a ordem do ranking como sinal editorial principal.`,
+    editorialPlan
+      ? [
+          'Plano editorial obrigatorio:',
+          `- Priorize exatamente este titulo publico: ${editorialPlan.titleHint}.`,
+          `- Nao invente slug; a Page.slug sera: ${editorialPlan.slugHint}.`,
+          `- Estruture o conteudo para ${editorialPlan.productCount} produtos.`,
+          `- Template: ${editorialPlan.template}. Intent: ${editorialPlan.intent}.`,
+          `- Use focusKeyword: ${editorialPlan.focusKeyword}.`,
+          `- Use secondaryKeywords: ${(editorialPlan.secondaryKeywords || []).join(', ')}.`,
+          `- Inclua esta transparencia no corpo, sem usar como titulo, slug ou palavra-chave principal: ${editorialPlan.sourceDisclosure}`,
+        ].join('\n')
+      : null,
+    'Nao use Mercado Livre como parte principal do titulo, metaTitle, focusKeyword ou slug, a menos que o plano editorial peca explicitamente.',
+    'Use Mercado Livre apenas como fonte/transparencia dos dados quando sourceDisclosure existir.',
     'Introducao: explique o problema de compra, o perfil do comprador e o objetivo do ranking sem abertura generica.',
     'Top picks: use os tres primeiros itens quando existirem. Rotule como Melhor geral, Melhor custo-beneficio e Melhor alternativa. Nao invente produtos.',
     'Comparacao: compare os primeiros produtos entre si, dizendo para qual perfil cada um tende a fazer mais sentido com base apenas nos dados disponiveis.',
     'Metodologia: gere uma secao "Como avaliamos" citando posicao, informacoes do marketplace, disponibilidade, preco quando existir, avaliacao quando existir e criterios editoriais.',
-    'Se source.sourceLabel indicar mais vendidos do Mercado Livre, mencione essa origem como sinal de ordem do ranking, sem afirmar que os produtos sao os melhores absolutos ou mais recentes.',
+    'Se source.sourceLabel indicar mais vendidos do Mercado Livre, mencione essa origem apenas como fonte dos produtos, sem afirmar que os produtos sao os melhores absolutos ou mais recentes.',
     'Nao mencione lastSyncAt como data publica, atualizacao, validade ou promessa de atualidade.',
     'FAQ: gere perguntas de intencao de compra, evitando perguntas vagas. Priorize uso profissional, custo-beneficio, escolha ideal e cuidados de compra.',
     'Conclusao: termine com recomendacao clara para a maioria dos usuarios, para uso profissional e para quem busca economia, quando os dados permitirem.',
-    'SEO: metaTitle entre 50 e 60 caracteres; metaDescription entre 140 e 160 caracteres; focusKeyword baseada em categoria, ranking e produto principal; secondaryKeywords uteis.',
+    'FAQ: siga a intencao editorial do plano. Gere perguntas especificas de compra, custo-beneficio, escolha ideal, diferencas de uso e cuidados antes de comprar.',
+    'SEO: metaTitle baseado no titleHint; metaDescription entre 140 e 160 caracteres; focusKeyword e secondaryKeywords devem seguir o editorialPlan quando ele existir.',
     'SEO temporal: nao inclua anos, meses, datas ou periodos em title, excerpt, introduction, conclusion, metaTitle, metaDescription, focusKeyword, secondaryKeywords ou FAQ se eles nao estiverem no contexto JSON.',
     'Slug e titulo publico serao derivados do conteudo gerado, portanto nao use anos ou periodos temporais sem contexto.',
     'Respeite os campos searchIntent, editorialNotes e evaluationCriteria quando eles existirem.',

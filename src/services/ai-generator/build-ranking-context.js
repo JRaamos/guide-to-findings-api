@@ -12,6 +12,25 @@ const parseId = (value) => {
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
 };
 
+const serializeEditorialPlan = (editorialPlan) => {
+  if (!editorialPlan || typeof editorialPlan !== 'object') {
+    return null;
+  }
+
+  return {
+    productCount: editorialPlan.productCount || null,
+    template: editorialPlan.template || null,
+    intent: editorialPlan.intent || null,
+    titleHint: editorialPlan.titleHint || null,
+    slugHint: editorialPlan.slugHint || null,
+    focusKeyword: editorialPlan.focusKeyword || null,
+    secondaryKeywords: Array.isArray(editorialPlan.secondaryKeywords)
+      ? editorialPlan.secondaryKeywords
+      : [],
+    sourceDisclosure: editorialPlan.sourceDisclosure || null,
+  };
+};
+
 const sortByPosition = (items = []) => {
   return [...items].sort((first, second) => {
     const firstPosition =
@@ -168,7 +187,7 @@ const getMarketplaceRankingSource = async (strapi, rankingId) => {
   };
 };
 
-const buildRankingContext = async (strapi, rankingId) => {
+const buildRankingContext = async (strapi, rankingId, options = {}) => {
   const id = parseId(rankingId);
 
   if (!id) {
@@ -208,6 +227,11 @@ const buildRankingContext = async (strapi, rankingId) => {
   const subCategory = getSubCategoryFromRanking(ranking);
   const marketplaceRankingSource = await getMarketplaceRankingSource(strapi, ranking.id);
 
+  const editorialPlan = serializeEditorialPlan(options.editorialPlan);
+  const products = activeItems.map((item) =>
+    serializeRankingItem(item, marketplaceRankingSource.entryByProductId)
+  );
+
   return {
     ranking: {
       id: ranking.id,
@@ -226,6 +250,7 @@ const buildRankingContext = async (strapi, rankingId) => {
         }
         : null,
     },
+    editorialPlan,
     source: marketplaceRankingSource.source,
     category: category
       ? {
@@ -243,9 +268,7 @@ const buildRankingContext = async (strapi, rankingId) => {
           description: subCategory.description || null,
         }
       : null,
-    products: activeItems.map((item) =>
-      serializeRankingItem(item, marketplaceRankingSource.entryByProductId)
-    ),
+    products: editorialPlan?.productCount ? products.slice(0, editorialPlan.productCount) : products,
   };
 };
 

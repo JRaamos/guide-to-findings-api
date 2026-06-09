@@ -56,19 +56,27 @@ const buildCanonicalUrl = (category, slug) => {
   return category?.slug ? `/${category.slug}/${slug}` : `/${slug}`;
 };
 
-const buildSchemaData = (rankingContext, pageSlug) => {
+const getEditorialProductCount = (rankingContext) => {
+  return rankingContext.editorialPlan?.productCount || rankingContext.products?.length || 0;
+};
+
+const buildSchemaData = (rankingContext, pageSlug, generatedContent) => {
   const categorySlug = rankingContext.category?.slug || null;
+  const itemListElement = rankingContext.products
+    .slice(0, getEditorialProductCount(rankingContext))
+    .map((item) => ({
+      '@type': 'ListItem',
+      position: item.position,
+      name: item.product?.name || item.title,
+    }));
 
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: rankingContext.ranking.title,
+    name: generatedContent.title || rankingContext.editorialPlan?.titleHint || rankingContext.ranking.title,
     url: categorySlug ? `/${categorySlug}/${pageSlug}` : `/${pageSlug}`,
-    itemListElement: rankingContext.products.map((item) => ({
-      '@type': 'ListItem',
-      position: item.position,
-      name: item.product?.name || item.title,
-    })),
+    numberOfItems: itemListElement.length,
+    itemListElement,
   };
 };
 
@@ -82,7 +90,10 @@ const upsertPage = async (strapi, rankingContext, generatedContent) => {
   }
 
   const baseSlug = slugify(
-    generatedContent.title || rankingContext.ranking.slug || rankingContext.ranking.title
+    rankingContext.editorialPlan?.slugHint ||
+      generatedContent.title ||
+      rankingContext.ranking.slug ||
+      rankingContext.ranking.title
   );
   const slug = await getUniqueDraftSlug(
     strapi,
@@ -133,7 +144,7 @@ const upsertSeo = async (strapi, page, rankingContext, generatedContent) => {
     status: 'draft',
     approvedAt: null,
     schemaType: 'itemList',
-    schemaData: buildSchemaData(rankingContext, page.slug),
+    schemaData: buildSchemaData(rankingContext, page.slug, generatedContent),
     focusKeyword: generatedContent.seo.focusKeyword,
     secondaryKeywords: generatedContent.seo.secondaryKeywords || [],
   };
