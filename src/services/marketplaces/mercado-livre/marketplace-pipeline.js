@@ -2,12 +2,12 @@
 
 const { syncMarketplaceRankingByTerm } = require('./ranking-term-sync');
 const { generatePageFromRanking } = require('../../ai-generator');
+const { buildCommandContext } = require('../../editorial-intelligence/command-context');
 const { buildEditorialPlan } = require('../../editorial-intelligence/editorial-plan');
 const { findReusablePage } = require('../../editorial-intelligence/page-reuse-engine');
 const publicationWorkflow = require('../../publication-workflow');
 
 const DEFAULT_SITE_ID = 'MLB';
-const DEFAULT_LIMIT = 20;
 const MINIMUM_RANKING_ITEMS = 10;
 const MINIMUM_FAQS = 3;
 const APPROVAL_PENDING_KEYS = new Set([
@@ -415,10 +415,19 @@ const buildDefaultPageReuseResult = () => ({
   reason: 'Page Reuse Engine was not evaluated yet',
 });
 
-const buildBaseResult = ({ syncResult, term, siteId, editorialPlan, warnings, errors }) => ({
+const buildBaseResult = ({
+  syncResult,
+  term,
+  siteId,
+  commandContext,
+  editorialPlan,
+  warnings,
+  errors,
+}) => ({
   success: true,
   term: syncResult?.term || term,
   siteId,
+  commandContext,
   editorialPlan,
   pageReuse: buildDefaultPageReuseResult(),
   category: syncResult ? buildCategoryResult(syncResult) : {
@@ -549,33 +558,47 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   }
 
   const {
+    message,
     term,
     siteId = DEFAULT_SITE_ID,
-    limit = DEFAULT_LIMIT,
+    limit,
+    fetchLimit,
+    displayLimit,
     editorialTemplate,
     editorialIntent,
+    intentModifier,
     preferredSlug,
+    titleHint,
     autoGenerate = true,
     autoPublish = true,
   } = options;
-  const normalizedTerm = normalizeTerm(term);
+  const commandContext = buildCommandContext({
+    message,
+    term,
+    limit,
+    fetchLimit,
+    displayLimit,
+    editorialTemplate,
+    editorialIntent,
+    intentModifier,
+    preferredSlug,
+    titleHint,
+  });
+  const normalizedTerm = normalizeTerm(commandContext.term);
 
   if (!normalizedTerm) {
     throw new Error('term is required');
   }
 
   const editorialPlan = buildEditorialPlan({
-    term: normalizedTerm,
-    limit,
-    template: editorialTemplate,
-    editorialIntent,
-    preferredSlug,
+    commandContext,
     sourceMarketplace: 'mercadoLivre',
   });
   const warnings = [];
   const errors = [];
   const earlyPageReuse = await findReusablePage(strapi, {
     term: normalizedTerm,
+    commandContext,
     editorialPlan,
     ranking: null,
   });
@@ -594,6 +617,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
         syncResult: null,
         term: normalizedTerm,
         siteId,
+        commandContext,
         editorialPlan,
         warnings,
         errors,
@@ -605,7 +629,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   const syncResult = await syncMarketplaceRankingByTerm(strapi, {
     term: normalizedTerm,
     siteId,
-    limit: editorialPlan.productCount,
+    limit: commandContext.fetchLimit,
   });
   warnings.push(...(syncResult.warnings || []));
   errors.push(...(syncResult.errors || []));
@@ -613,6 +637,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     syncResult,
     term: normalizedTerm,
     siteId,
+    commandContext,
     editorialPlan,
     warnings,
     errors,
@@ -630,6 +655,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   );
   const pageReuse = await findReusablePage(strapi, {
     term: normalizedTerm,
+    commandContext,
     editorialPlan,
     ranking: preGeneration.ranking,
   });
@@ -686,6 +712,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
 
   const generated = await generatePageFromRanking(strapi, {
     rankingId,
+    commandContext,
     editorialPlan,
   });
   const generatedResult = withAiResult(result, {

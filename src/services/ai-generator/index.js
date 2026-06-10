@@ -63,6 +63,7 @@ const generatePageFromRanking = async (strapi, payload = {}) => {
 
   try {
     rankingContext = await buildRankingContext(strapi, rankingId, {
+      commandContext: payload.commandContext,
       editorialPlan: payload.editorialPlan,
     });
 
@@ -78,6 +79,7 @@ const generatePageFromRanking = async (strapi, payload = {}) => {
       inputData: {
         ranking: rankingContext.ranking,
         source: rankingContext.source || null,
+        commandContext: rankingContext.commandContext || null,
         editorialPlan: rankingContext.editorialPlan || null,
         category: rankingContext.category,
         subCategory: rankingContext.subCategory,

@@ -226,7 +226,7 @@ const findReusablePage = async (strapiOrOptions = {}, maybeOptions) => {
     throw new Error('strapi instance is required');
   }
 
-  const { term, editorialPlan, ranking } = options;
+  const { term, commandContext, editorialPlan, ranking } = options;
   const rankingPage = ranking?.page || null;
 
   if (rankingPage?.id && REUSABLE_STATUSES.includes(rankingPage.status)) {
@@ -246,8 +246,11 @@ const findReusablePage = async (strapiOrOptions = {}, maybeOptions) => {
     });
   }
 
-  const inputIntent = editorialPlan?.intent || inferIntentFromTerm(term);
-  const termKey = normalizeEditorialTerm(term || editorialPlan?.normalizedTerm || editorialPlan?.term);
+  const contextTerm = commandContext?.normalizedTerm || commandContext?.term || term;
+  const inputIntent = editorialPlan?.intent || commandContext?.editorialIntent || inferIntentFromTerm(contextTerm);
+  const termKey = normalizeEditorialTerm(
+    contextTerm || editorialPlan?.normalizedTerm || editorialPlan?.term
+  );
   const equivalentPage = await findPageByEquivalentTerm(strapi, {
     termKey,
     intent: inputIntent,

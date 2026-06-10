@@ -279,6 +279,7 @@ const buildSourceDisclosure = (sourceMarketplace) => {
 };
 
 const buildEditorialPlan = ({
+  commandContext = null,
   term,
   limit = DEFAULT_LIMIT,
   template = DEFAULT_TEMPLATE,
@@ -286,27 +287,33 @@ const buildEditorialPlan = ({
   preferredSlug = null,
   sourceMarketplace = DEFAULT_SOURCE_MARKETPLACE,
 } = {}) => {
-  const originalTerm = normalizeWhitespace(term);
+  const contextTerm = commandContext?.term || term;
+  const contextLimit = commandContext?.productCount || commandContext?.displayLimit || limit;
+  const contextTemplate = commandContext?.editorialTemplate || template;
+  const contextIntent = commandContext?.editorialIntent || editorialIntent;
+  const contextPreferredSlug = commandContext?.preferredSlug || preferredSlug;
+  const contextTitleHint = commandContext?.titleHint || null;
+  const originalTerm = normalizeWhitespace(contextTerm);
   const safeTerm = stripUnsafeEditorialText(originalTerm);
   const normalizedTerm = normalizeSearchText(safeTerm);
-  const productCount = normalizeLimit(limit);
-  const safeTemplate = normalizeTemplate(template);
-  const validIntent = normalizeIntent(editorialIntent);
+  const productCount = normalizeLimit(contextLimit);
+  const safeTemplate = normalizeTemplate(contextTemplate);
+  const validIntent = normalizeIntent(contextIntent);
   const intent = validIntent || inferIntent({
     normalizedTerm,
     template: safeTemplate,
   });
   const productTerm = buildProductTerm(normalizedTerm);
-  const titleHint = buildTitleHint({
+  const titleHint = normalizeWhitespace(contextTitleHint) || buildTitleHint({
     productTerm,
     productCount,
     intent,
-  }).slice(0, MAX_TITLE_LENGTH);
+  });
   const slugHint = buildSlugHint({
     normalizedTerm,
     productTerm,
     intent,
-    preferredSlug,
+    preferredSlug: contextPreferredSlug,
   });
 
   return {
@@ -315,7 +322,7 @@ const buildEditorialPlan = ({
     productCount,
     template: safeTemplate,
     intent,
-    titleHint,
+    titleHint: titleHint.slice(0, MAX_TITLE_LENGTH),
     slugHint,
     focusKeyword: buildFocusKeyword({
       productTerm,

@@ -31,6 +31,30 @@ const serializeEditorialPlan = (editorialPlan) => {
   };
 };
 
+const serializeCommandContext = (commandContext) => {
+  if (!commandContext || typeof commandContext !== 'object') {
+    return null;
+  }
+
+  return {
+    source: commandContext.source || null,
+    rawMessage: commandContext.rawMessage || null,
+    term: commandContext.term || null,
+    normalizedTerm: commandContext.normalizedTerm || null,
+    fetchLimit: commandContext.fetchLimit || null,
+    displayLimit: commandContext.displayLimit || null,
+    productCount: commandContext.productCount || null,
+    editorialTemplate: commandContext.editorialTemplate || null,
+    editorialIntent: commandContext.editorialIntent || null,
+    intentModifier: commandContext.intentModifier || null,
+    preferredSlug: commandContext.preferredSlug || null,
+    titleHint: commandContext.titleHint || null,
+    confidence: commandContext.confidence || null,
+    warnings: Array.isArray(commandContext.warnings) ? commandContext.warnings : [],
+    parserResult: commandContext.parserResult || null,
+  };
+};
+
 const sortByPosition = (items = []) => {
   return [...items].sort((first, second) => {
     const firstPosition =
@@ -227,6 +251,7 @@ const buildRankingContext = async (strapi, rankingId, options = {}) => {
   const subCategory = getSubCategoryFromRanking(ranking);
   const marketplaceRankingSource = await getMarketplaceRankingSource(strapi, ranking.id);
 
+  const commandContext = serializeCommandContext(options.commandContext);
   const editorialPlan = serializeEditorialPlan(options.editorialPlan);
   const products = activeItems.map((item) =>
     serializeRankingItem(item, marketplaceRankingSource.entryByProductId)
@@ -250,6 +275,7 @@ const buildRankingContext = async (strapi, rankingId, options = {}) => {
         }
         : null,
     },
+    commandContext,
     editorialPlan,
     source: marketplaceRankingSource.source,
     category: category

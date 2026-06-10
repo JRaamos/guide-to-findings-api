@@ -8,7 +8,7 @@ const {
 } = require('../src/services/marketplaces/mercado-livre/marketplace-pipeline');
 
 const DEFAULT_SITE_ID = 'MLB';
-const DEFAULT_TERM = 'furadeira';
+const DEFAULT_MESSAGE = 'furadeira';
 
 const uid = {
   marketplaceRanking: 'api::marketplace-ranking.marketplace-ranking',
@@ -23,10 +23,10 @@ const uid = {
   aiGenerationLog: 'api::ai-generation-log.ai-generation-log',
 };
 
-const getTerm = () => {
-  const term = process.argv.slice(2).join(' ').trim();
+const getMessage = () => {
+  const message = process.argv.slice(2).join(' ').trim();
 
-  return term || DEFAULT_TERM;
+  return message || DEFAULT_MESSAGE;
 };
 
 const countRecords = (strapi, modelUid) => {
@@ -47,14 +47,14 @@ const countModels = async (strapi) => ({
 });
 
 const main = async () => {
-  const term = getTerm();
+  const message = getMessage();
   const siteId = process.env.MERCADO_LIVRE_SITE_ID || DEFAULT_SITE_ID;
   const app = await createStrapi().load();
 
   try {
     const beforeCounts = await countModels(app);
     const result = await runMarketplacePipeline(app, {
-      term,
+      message,
       siteId,
       autoGenerate: true,
       autoPublish: true,
