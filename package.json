@@ -14,6 +14,7 @@
     "seed:local": "node scripts/seed-local.js",
     "inspect:editorial-plan": "node scripts/inspect-editorial-plan.js",
     "inspect:chat-command": "node scripts/inspect-chat-command.js",
+    "inspect:command-context": "node scripts/inspect-command-context.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",
     "sync:ml:publish": "node scripts/sync-generate-publish-mercadolivre-ranking.js",
     "cleanup:production": "node scripts/production-cleanup.js",
