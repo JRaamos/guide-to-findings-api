@@ -31,10 +31,23 @@ const COMPARISON_PATTERN = /\bcomparativo\b|\bcomparacao\b|\bcomparação\b|\bve
 const FEMININE_TERMS = new Set([
   'air fryer',
   'air fryers',
+  'batedeira',
+  'batedeiras',
+  'cadeira',
+  'cadeiras',
+  'cafeteira',
+  'cafeteiras',
   'furadeira',
   'furadeiras',
   'mamadeira',
   'mamadeiras',
+]);
+const INVARIABLE_TRAILING_TERMS = new Set([
+  'gamer',
+  'premium',
+  'plus',
+  'pro',
+  'smart',
 ]);
 
 const normalizeWhitespace = (value = '') => {
@@ -108,6 +121,37 @@ const normalizeLimit = (limit) => {
   return ALLOWED_LIMITS.has(parsedLimit) ? parsedLimit : DEFAULT_LIMIT;
 };
 
+const getWords = (term = '') => {
+  return term.split(' ').filter(Boolean);
+};
+
+const pluralizeWord = (word) => {
+  if (!word || word.endsWith('s')) {
+    return word;
+  }
+
+  if (word.endsWith('m')) {
+    return `${word.slice(0, -1)}ns`;
+  }
+
+  if (word.endsWith('r') || word.endsWith('z')) {
+    return `${word}es`;
+  }
+
+  return `${word}s`;
+};
+
+const looksPlural = (term) => {
+  const words = getWords(term);
+  const lastWord = words[words.length - 1];
+
+  if (!lastWord) {
+    return false;
+  }
+
+  return lastWord.endsWith('s') || words.slice(0, -1).some((word) => word.endsWith('s'));
+};
+
 const normalizeTemplate = (template) => {
   return ALLOWED_TEMPLATES.has(template) ? template : DEFAULT_TEMPLATE;
 };
@@ -133,22 +177,7 @@ const inferIntent = ({ normalizedTerm, template }) => {
 };
 
 const singularizeLastWord = (term) => {
-  if (term.endsWith('air fryers')) {
-    return term.replace(/air fryers$/, 'air fryer');
-  }
-
-  const words = term.split(' ').filter(Boolean);
-  const lastWord = words[words.length - 1];
-
-  if (!lastWord) {
-    return term;
-  }
-
-  if (lastWord.endsWith('s') && lastWord.length > 3) {
-    words[words.length - 1] = lastWord.slice(0, -1);
-  }
-
-  return words.join(' ');
+  return term;
 };
 
 const pluralizeLastWord = (term) => {
@@ -156,20 +185,24 @@ const pluralizeLastWord = (term) => {
     return term.replace(/air fryer$/, 'air fryers');
   }
 
-  const words = term.split(' ').filter(Boolean);
-  const lastWord = words[words.length - 1];
-
-  if (!lastWord || lastWord.endsWith('s')) {
+  if (looksPlural(term)) {
     return term;
   }
 
-  if (lastWord.endsWith('m')) {
-    words[words.length - 1] = `${lastWord.slice(0, -1)}ns`;
-  } else if (lastWord.endsWith('r') || lastWord.endsWith('z')) {
-    words[words.length - 1] = `${lastWord}es`;
-  } else {
-    words[words.length - 1] = `${lastWord}s`;
+  const words = getWords(term);
+  const lastWord = words[words.length - 1];
+
+  if (!lastWord) {
+    return term;
   }
+
+  if (INVARIABLE_TRAILING_TERMS.has(lastWord) && words.length > 1) {
+    words[words.length - 2] = pluralizeWord(words[words.length - 2]);
+
+    return words.join(' ');
+  }
+
+  words[words.length - 1] = pluralizeWord(lastWord);
 
   return words.join(' ');
 };
@@ -192,13 +225,19 @@ const buildProductTerm = (normalizedTerm) => {
 };
 
 const getArticle = (pluralTerm) => {
-  const lastWord = pluralTerm.split(' ').filter(Boolean).pop() || '';
+  const words = getWords(pluralTerm);
+  const firstWord = words[0] || '';
+  const lastWord = words[words.length - 1] || '';
 
-  if (FEMININE_TERMS.has(pluralTerm) || FEMININE_TERMS.has(lastWord)) {
+  if (
+    FEMININE_TERMS.has(pluralTerm) ||
+    FEMININE_TERMS.has(firstWord) ||
+    FEMININE_TERMS.has(lastWord)
+  ) {
     return 'As';
   }
 
-  return lastWord.endsWith('as') ? 'As' : 'Os';
+  return firstWord.endsWith('as') || lastWord.endsWith('as') ? 'As' : 'Os';
 };
 
 const buildTitleHint = ({ productTerm, productCount, intent }) => {
@@ -252,15 +291,14 @@ const buildFocusKeyword = ({ productTerm, intent }) => {
 };
 
 const buildSecondaryKeywords = ({ productTerm, intent }) => {
-  const singularTerm = singularizeLastWord(productTerm);
   const pluralTerm = pluralizeLastWord(productTerm);
   const keywords = [
-    `qual ${singularTerm} comprar`,
+    `como escolher ${pluralTerm}`,
     `${pluralTerm} para comprar`,
   ];
 
   if (intent !== 'costBenefit') {
-    keywords.unshift(`${singularTerm} custo-benefício`);
+    keywords.unshift(`${pluralTerm} custo-benefício`);
   }
 
   if (intent !== 'comparison') {

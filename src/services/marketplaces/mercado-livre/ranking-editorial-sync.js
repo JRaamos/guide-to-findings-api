@@ -13,6 +13,9 @@ const DEFAULT_SITE_ID = 'MLB';
 const DEFAULT_RANKING_TYPE = 'top10';
 const DEFAULT_RANKING_STATUS = 'draft';
 const DEFAULT_CTA_TEXT = 'Ver oferta';
+const DEFAULT_DISPLAY_LIMIT = 10;
+const MIN_DISPLAY_LIMIT = 5;
+const MAX_DISPLAY_LIMIT = 20;
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
 
@@ -24,6 +27,16 @@ const parseId = (value) => {
 
 const sanitizeText = (value) => {
   return typeof value === 'string' ? value.trim() : '';
+};
+
+const normalizeDisplayLimit = (value) => {
+  const parsedLimit = Number(value);
+
+  if (!Number.isInteger(parsedLimit)) {
+    return DEFAULT_DISPLAY_LIMIT;
+  }
+
+  return Math.min(MAX_DISPLAY_LIMIT, Math.max(MIN_DISPLAY_LIMIT, parsedLimit));
 };
 
 const slugify = (value = '') => {
@@ -341,6 +354,7 @@ const upsertRankingItems = async (strapi, ranking, items) => {
       productId: item.product.id,
       marketplaceProductId: item.product.marketplaceProductId,
       position: item.position,
+      sourcePosition: item.sourcePosition || item.position,
       affiliateLinkId: affiliateLink?.id || null,
       sourceEntryId: item.entryId,
     });
@@ -356,7 +370,12 @@ const upsertRankingItems = async (strapi, ranking, items) => {
 
 const syncMarketplaceRankingEditorial = async (
   strapi,
-  { siteId = DEFAULT_SITE_ID, categoryId, marketplaceRankingId } = {}
+  {
+    siteId = DEFAULT_SITE_ID,
+    categoryId,
+    marketplaceRankingId,
+    displayLimit = DEFAULT_DISPLAY_LIMIT,
+  } = {}
 ) => {
   if (!strapi?.db) {
     throw new Error('strapi instance is required');
@@ -379,8 +398,16 @@ const syncMarketplaceRankingEditorial = async (
 
   const entries = await findMarketplaceRankingEntries(strapi, marketplaceRanking.id);
   const { items, skipped } = buildEligibleItems(entries);
+  const normalizedDisplayLimit = normalizeDisplayLimit(displayLimit);
+  const displayItems = items
+    .slice(0, normalizedDisplayLimit)
+    .map((item, index) => ({
+      ...item,
+      sourcePosition: item.position,
+      position: index + 1,
+    }));
 
-  if (!items.length) {
+  if (!displayItems.length) {
     throw new Error('No publishable MarketplaceRankingEntry with linked Product found');
   }
 
@@ -392,7 +419,7 @@ const syncMarketplaceRankingEditorial = async (
     rankingResult.record.id
   );
 
-  const itemResult = await upsertRankingItems(strapi, rankingResult.record, items);
+  const itemResult = await upsertRankingItems(strapi, rankingResult.record, displayItems);
 
   return {
     success: true,
@@ -403,6 +430,8 @@ const syncMarketplaceRankingEditorial = async (
     categoryId: marketplaceRanking.externalCategoryId,
     totalEntries: entries.length,
     eligibleEntries: items.length,
+    displayLimit: normalizedDisplayLimit,
+    displayedEntries: displayItems.length,
     createdRankingItems: itemResult.createdRankingItems,
     updatedRankingItems: itemResult.updatedRankingItems,
     deactivatedRankingItems: itemResult.deactivatedRankingItems,

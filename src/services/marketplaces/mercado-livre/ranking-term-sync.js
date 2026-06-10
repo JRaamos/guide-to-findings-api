@@ -10,6 +10,7 @@ const { syncMarketplaceRankingEditorial } = require('./ranking-editorial-sync');
 
 const DEFAULT_SITE_ID = 'MLB';
 const DEFAULT_LIMIT = 20;
+const DEFAULT_DISPLAY_LIMIT = 10;
 const MINIMUM_HIGHLIGHTS = 10;
 const MINIMUM_PUBLISHABLE_PRODUCTS = 10;
 
@@ -49,7 +50,12 @@ const buildResolvedCategory = (category) => ({
 
 const syncMarketplaceRankingByTerm = async (
   strapi,
-  { term, siteId = DEFAULT_SITE_ID, limit = DEFAULT_LIMIT } = {}
+  {
+    term,
+    siteId = DEFAULT_SITE_ID,
+    limit = DEFAULT_LIMIT,
+    displayLimit = DEFAULT_DISPLAY_LIMIT,
+  } = {}
 ) => {
   if (!strapi?.db) {
     throw new Error('strapi instance is required');
@@ -124,6 +130,7 @@ const syncMarketplaceRankingByTerm = async (
     siteId,
     categoryId: category.id,
     marketplaceRankingId: marketplaceRankingResult.marketplaceRankingId,
+    displayLimit,
   });
 
   if (productResult.errors?.length) {
@@ -166,6 +173,8 @@ const syncMarketplaceRankingByTerm = async (
       itemsUpdated: editorialResult.updatedRankingItems,
       itemsDeactivated: editorialResult.deactivatedRankingItems,
       eligibleEntries: editorialResult.eligibleEntries,
+      displayLimit: editorialResult.displayLimit,
+      displayedEntries: editorialResult.displayedEntries,
     },
     warnings,
     errors,

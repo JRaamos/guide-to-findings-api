@@ -118,9 +118,21 @@ const addValidationError = (errors, code, message, details = {}) => {
   });
 };
 
-const validateRankingBeforeGeneration = async (strapi, rankingId, resolvedCategory) => {
+const getRequiredRankingItems = (editorialPlan) => {
+  const productCount = Number(editorialPlan?.productCount);
+
+  return Number.isInteger(productCount) && productCount > 0 ? productCount : MINIMUM_RANKING_ITEMS;
+};
+
+const validateRankingBeforeGeneration = async (
+  strapi,
+  rankingId,
+  resolvedCategory,
+  editorialPlan
+) => {
   const validationErrors = [];
   const ranking = await getRanking(strapi, rankingId);
+  const requiredRankingItems = getRequiredRankingItems(editorialPlan);
 
   if (!ranking) {
     addValidationError(validationErrors, 'ranking.notFound', 'Ranking not found', { rankingId });
@@ -145,15 +157,16 @@ const validateRankingBeforeGeneration = async (strapi, rankingId, resolvedCatego
   const activeItems = (ranking.items || [])
     .filter((item) => item.status === 'active')
     .sort((first, second) => first.position - second.position);
-  const topItems = activeItems.slice(0, MINIMUM_RANKING_ITEMS);
+  const topItems = activeItems.slice(0, requiredRankingItems);
 
-  if (activeItems.length < MINIMUM_RANKING_ITEMS) {
+  if (activeItems.length < requiredRankingItems) {
     addValidationError(
       validationErrors,
       'ranking.itemsCount',
-      'Ranking does not have at least 10 active items',
+      'Ranking does not have enough active items for the editorial display limit',
       {
         activeItems: activeItems.length,
+        requiredRankingItems,
       }
     );
   }
@@ -405,6 +418,10 @@ const buildEditorialRankingResult = (syncResult) => ({
   created: Boolean(syncResult.editorialRanking?.created),
   itemsCreated: syncResult.editorialRanking?.itemsCreated || 0,
   itemsUpdated: syncResult.editorialRanking?.itemsUpdated || 0,
+  itemsDeactivated: syncResult.editorialRanking?.itemsDeactivated || 0,
+  eligibleEntries: syncResult.editorialRanking?.eligibleEntries || 0,
+  displayLimit: syncResult.editorialRanking?.displayLimit || 0,
+  displayedEntries: syncResult.editorialRanking?.displayedEntries || 0,
 });
 
 const buildDefaultPageReuseResult = () => ({
@@ -454,6 +471,10 @@ const buildBaseResult = ({
     created: false,
     itemsCreated: 0,
     itemsUpdated: 0,
+    itemsDeactivated: 0,
+    eligibleEntries: 0,
+    displayLimit: 0,
+    displayedEntries: 0,
   },
   ai: {
     generated: false,
@@ -630,6 +651,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     term: normalizedTerm,
     siteId,
     limit: commandContext.fetchLimit,
+    displayLimit: commandContext.displayLimit,
   });
   warnings.push(...(syncResult.warnings || []));
   errors.push(...(syncResult.errors || []));
@@ -651,7 +673,8 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   const preGeneration = await validateRankingBeforeGeneration(
     strapi,
     rankingId,
-    syncResult.resolvedCategory
+    syncResult.resolvedCategory,
+    editorialPlan
   );
   const pageReuse = await findReusablePage(strapi, {
     term: normalizedTerm,

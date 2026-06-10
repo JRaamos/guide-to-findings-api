@@ -62,12 +62,23 @@ const INTENT_WORDS = new Set([
 const FEMININE_TERMS = new Set([
   'air fryer',
   'air fryers',
+  'batedeira',
+  'batedeiras',
+  'cadeira',
+  'cadeiras',
   'cafeteira',
   'cafeteiras',
   'furadeira',
   'furadeiras',
   'mamadeira',
   'mamadeiras',
+]);
+const INVARIABLE_TRAILING_TERMS = new Set([
+  'gamer',
+  'premium',
+  'plus',
+  'pro',
+  'smart',
 ]);
 
 const normalizeWhitespace = (value = '') => {
@@ -96,23 +107,39 @@ const slugify = (value = '') => {
     .replace(/-+/g, '-');
 };
 
-const singularizeLastWord = (term) => {
-  if (term.endsWith('air fryers')) {
-    return term.replace(/air fryers$/, 'air fryer');
+const getWords = (term = '') => {
+  return term.split(' ').filter(Boolean);
+};
+
+const pluralizeWord = (word) => {
+  if (!word || word.endsWith('s')) {
+    return word;
   }
 
-  const words = term.split(' ').filter(Boolean);
+  if (word.endsWith('m')) {
+    return `${word.slice(0, -1)}ns`;
+  }
+
+  if (word.endsWith('r') || word.endsWith('z')) {
+    return `${word}es`;
+  }
+
+  return `${word}s`;
+};
+
+const looksPlural = (term) => {
+  const words = getWords(term);
   const lastWord = words[words.length - 1];
 
   if (!lastWord) {
-    return term;
+    return false;
   }
 
-  if (lastWord.endsWith('s') && lastWord.length > 3) {
-    words[words.length - 1] = lastWord.slice(0, -1);
-  }
+  return lastWord.endsWith('s') || words.slice(0, -1).some((word) => word.endsWith('s'));
+};
 
-  return words.join(' ');
+const singularizeLastWord = (term) => {
+  return term;
 };
 
 const pluralizeLastWord = (term) => {
@@ -120,32 +147,42 @@ const pluralizeLastWord = (term) => {
     return term.replace(/air fryer$/, 'air fryers');
   }
 
-  const words = term.split(' ').filter(Boolean);
-  const lastWord = words[words.length - 1];
-
-  if (!lastWord || lastWord.endsWith('s')) {
+  if (looksPlural(term)) {
     return term;
   }
 
-  if (lastWord.endsWith('m')) {
-    words[words.length - 1] = `${lastWord.slice(0, -1)}ns`;
-  } else if (lastWord.endsWith('r') || lastWord.endsWith('z')) {
-    words[words.length - 1] = `${lastWord}es`;
-  } else {
-    words[words.length - 1] = `${lastWord}s`;
+  const words = getWords(term);
+  const lastWord = words[words.length - 1];
+
+  if (!lastWord) {
+    return term;
   }
+
+  if (INVARIABLE_TRAILING_TERMS.has(lastWord) && words.length > 1) {
+    words[words.length - 2] = pluralizeWord(words[words.length - 2]);
+
+    return words.join(' ');
+  }
+
+  words[words.length - 1] = pluralizeWord(lastWord);
 
   return words.join(' ');
 };
 
 const getArticle = (pluralTerm) => {
-  const lastWord = pluralTerm.split(' ').filter(Boolean).pop() || '';
+  const words = getWords(pluralTerm);
+  const firstWord = words[0] || '';
+  const lastWord = words[words.length - 1] || '';
 
-  if (FEMININE_TERMS.has(pluralTerm) || FEMININE_TERMS.has(lastWord)) {
+  if (
+    FEMININE_TERMS.has(pluralTerm) ||
+    FEMININE_TERMS.has(firstWord) ||
+    FEMININE_TERMS.has(lastWord)
+  ) {
     return 'As';
   }
 
-  return lastWord.endsWith('as') ? 'As' : 'Os';
+  return firstWord.endsWith('as') || lastWord.endsWith('as') ? 'As' : 'Os';
 };
 
 const parseDisplayLimit = (message, warnings) => {
@@ -167,7 +204,7 @@ const parseDisplayLimit = (message, warnings) => {
     return MAX_DISPLAY_LIMIT;
   }
 
-  if (requestedLimit < 3) {
+  if (requestedLimit < MIN_DISPLAY_LIMIT) {
     warnings.push({
       code: 'displayLimit.min',
       message: `displayLimit aumentado para ${MIN_DISPLAY_LIMIT}`,
