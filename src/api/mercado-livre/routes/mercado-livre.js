@@ -8,7 +8,7 @@ module.exports = {
       handler: 'mercado-livre.rankingChatPreview',
       config: {
         auth: false,
-        policies: [],
+        policies: ['admin::isAuthenticatedAdmin'],
         description: 'Preview Mercado Livre ranking generation context without persistence',
       },
     },
@@ -18,7 +18,7 @@ module.exports = {
       handler: 'mercado-livre.rankingChat',
       config: {
         auth: false,
-        policies: [],
+        policies: ['admin::isAuthenticatedAdmin'],
         description: 'Generate and optionally publish a Mercado Livre ranking from one operator term',
       },
     },
