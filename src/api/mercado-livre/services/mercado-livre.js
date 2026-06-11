@@ -3,6 +3,9 @@
 const {
   syncGenerateAndPublishMarketplaceRanking,
 } = require('../../../services/marketplaces/mercado-livre/ranking-auto-publish');
+const {
+  buildRankingChatPreview,
+} = require('../../../services/marketplaces/mercado-livre/ranking-chat-preview');
 
 const DEFAULT_SITE_ID = 'MLB';
 const DEFAULT_LIMIT = 20;
@@ -39,15 +42,31 @@ const buildChatResponse = (result) => ({
 });
 
 module.exports = () => ({
-  async rankingChat(payload = {}) {
-    const term = normalizeTerm(payload.term);
+  rankingChatPreview(payload = {}) {
+    const message = normalizeTerm(payload.message || payload.term);
 
-    if (!term) {
-      throw new Error('term is required');
+    if (!message) {
+      throw new Error('message is required');
+    }
+
+    return buildRankingChatPreview(strapi, {
+      message,
+      siteId: payload.siteId || process.env.MERCADO_LIVRE_SITE_ID || DEFAULT_SITE_ID,
+      limit: payload.limit,
+      fetchLimit: payload.fetchLimit,
+      displayLimit: payload.displayLimit,
+    });
+  },
+
+  async rankingChat(payload = {}) {
+    const message = normalizeTerm(payload.message || payload.term);
+
+    if (!message) {
+      throw new Error('message is required');
     }
 
     const result = await syncGenerateAndPublishMarketplaceRanking(strapi, {
-      term,
+      message,
       siteId: payload.siteId || process.env.MERCADO_LIVRE_SITE_ID || DEFAULT_SITE_ID,
       limit: payload.limit || DEFAULT_LIMIT,
       autoPublish: normalizeBoolean(payload.autoPublish, true),

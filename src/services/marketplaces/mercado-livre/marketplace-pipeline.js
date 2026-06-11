@@ -404,6 +404,7 @@ const buildMarketplaceRankingResult = (syncResult) => ({
   id: syncResult.marketplaceRanking?.id || null,
   totalHighlights: syncResult.marketplaceRanking?.totalHighlights || 0,
   totalPublishable: syncResult.marketplaceRanking?.totalPublishable || 0,
+  requiredPublishableProducts: syncResult.marketplaceRanking?.requiredPublishableProducts || 0,
   publishableRate: syncResult.marketplaceRanking?.publishableRate || 0,
 });
 
@@ -459,6 +460,7 @@ const buildBaseResult = ({
     id: null,
     totalHighlights: 0,
     totalPublishable: 0,
+    requiredPublishableProducts: 0,
     publishableRate: 0,
   },
   products: syncResult ? buildProductResult(syncResult) : {

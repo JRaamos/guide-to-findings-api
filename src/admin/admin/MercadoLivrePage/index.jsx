@@ -13,6 +13,7 @@ import {
 import { useFetchClient } from '@strapi/strapi/admin';
 
 const RANKING_CHAT_ENDPOINT = '/api/internal/marketplaces/mercado-livre/ranking-chat';
+const RANKING_CHAT_PREVIEW_ENDPOINT = '/api/internal/marketplaces/mercado-livre/ranking-chat-preview';
 const EXAMPLE_TERMS = ['furadeira', 'notebook', 'mamadeira', 'air fryer'];
 
 const formatPercent = (value) => {
@@ -142,6 +143,106 @@ const ResultSummary = ({ result }) => {
   );
 };
 
+const getPageReuseLabel = (pageReuse) => {
+  if (!pageReuse) {
+    return 'n/a';
+  }
+
+  return pageReuse.found
+    ? `${pageReuse.action} / Page ${pageReuse.pageId}`
+    : pageReuse.action;
+};
+
+const PreviewSummary = ({ preview }) => {
+  if (!preview) {
+    return null;
+  }
+
+  const commandContext = preview.commandContext || {};
+  const editorialPlan = preview.editorialPlan || {};
+  const marketplaceCategory = preview.category?.marketplace || {};
+  const localCategory = preview.category?.local?.category || {};
+  const localSubCategory = preview.category?.local?.subCategory || {};
+
+  return (
+    <Box background="neutral0" borderColor="primary200" hasRadius padding={5}>
+      <Flex direction="column" alignItems="stretch" gap={4}>
+        <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+          <Flex direction="column" alignItems="flex-start" gap={1}>
+            <Typography variant="beta">Preview</Typography>
+            <Typography textColor="neutral600">{commandContext.rawMessage || commandContext.term}</Typography>
+          </Flex>
+          <Badge active={preview.pageReuse?.found}>{getPageReuseLabel(preview.pageReuse)}</Badge>
+        </Flex>
+
+        <Flex gap={4} wrap="wrap">
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Termo
+            </Typography>
+            <Typography>{commandContext.term || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Categoria ML
+            </Typography>
+            <Typography>
+              {marketplaceCategory.id || 'n/a'} {marketplaceCategory.name ? `- ${marketplaceCategory.name}` : ''}
+            </Typography>
+          </Box>
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Categoria local
+            </Typography>
+            <Typography>{localCategory.name || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Subcategoria local
+            </Typography>
+            <Typography>{localSubCategory.name || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Display / Fetch
+            </Typography>
+            <Typography>
+              {commandContext.displayLimit || 0} / {commandContext.fetchLimit || 0}
+            </Typography>
+          </Box>
+          <Box minWidth="180px">
+            <Typography variant="sigma" textColor="neutral600">
+              Intent
+            </Typography>
+            <Typography>{editorialPlan.intent || commandContext.editorialIntent || 'n/a'}</Typography>
+          </Box>
+        </Flex>
+
+        <Flex gap={4} wrap="wrap">
+          <Box flex="1 1 320px">
+            <Typography variant="sigma" textColor="neutral600">
+              Titulo sugerido
+            </Typography>
+            <Typography>{editorialPlan.titleHint || commandContext.titleHint || 'n/a'}</Typography>
+          </Box>
+          <Box flex="1 1 240px">
+            <Typography variant="sigma" textColor="neutral600">
+              Slug sugerido
+            </Typography>
+            <Typography>{editorialPlan.slugHint || commandContext.preferredSlug || 'n/a'}</Typography>
+          </Box>
+        </Flex>
+
+        {preview.category?.warnings?.length ? (
+          <Typography variant="pi" textColor="neutral600">
+            Avisos: {formatList(preview.category.warnings)}
+          </Typography>
+        ) : null}
+      </Flex>
+    </Box>
+  );
+};
+
 const MessageBubble = ({ message }) => {
   const isOperator = message.role === 'operator';
 
@@ -168,6 +269,7 @@ const MercadoLivrePage = () => {
   const { post } = useFetchClient();
   const [term, setTerm] = useState('');
   const [autoPublish, setAutoPublish] = useState(true);
+  const [previewResult, setPreviewResult] = useState(null);
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -176,11 +278,38 @@ const MercadoLivrePage = () => {
     },
   ]);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const lastResult = useMemo(() => {
     return [...messages].reverse().find((message) => message.result)?.result || null;
   }, [messages]);
+
+  const runPreview = async (value) => {
+    const normalizedTerm = value.trim();
+
+    if (!normalizedTerm) {
+      setErrorMessage('Informe uma mensagem para visualizar o preview.');
+      return;
+    }
+
+    setErrorMessage('');
+    setIsPreviewing(true);
+
+    try {
+      const response = await post(RANKING_CHAT_PREVIEW_ENDPOINT, {
+        message: normalizedTerm,
+      });
+
+      setPreviewResult(response.data);
+    } catch (error) {
+      const message = error.response?.data?.error?.message || 'Nao foi possivel gerar o preview agora.';
+
+      setErrorMessage(message);
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
 
   const runTerm = async (value) => {
     const normalizedTerm = value.trim();
@@ -204,7 +333,7 @@ const MercadoLivrePage = () => {
 
     try {
       const response = await post(RANKING_CHAT_ENDPOINT, {
-        term: normalizedTerm,
+        message: normalizedTerm,
         autoPublish,
       });
       const result = response.data;
@@ -237,7 +366,7 @@ const MercadoLivrePage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    runTerm(term);
+    runPreview(term);
   };
 
   return (
@@ -268,8 +397,11 @@ const MercadoLivrePage = () => {
                       label="Termo"
                       name="term"
                       value={term}
-                      onChange={(event) => setTerm(event.target.value)}
-                      placeholder="furadeira"
+                      onChange={(event) => {
+                        setTerm(event.target.value);
+                        setPreviewResult(null);
+                      }}
+                      placeholder="quero fazer um top 10 melhores pneus"
                     />
                   </Box>
                   <Toggle
@@ -279,8 +411,16 @@ const MercadoLivrePage = () => {
                     offLabel="Nao"
                     onChange={() => setAutoPublish((value) => !value)}
                   />
-                  <Button type="submit" loading={isRunning}>
-                    Executar
+                  <Button type="submit" loading={isPreviewing} disabled={isRunning}>
+                    Preview
+                  </Button>
+                  <Button
+                    type="button"
+                    loading={isRunning}
+                    disabled={isPreviewing}
+                    onClick={() => runTerm(term || previewResult?.commandContext?.rawMessage || '')}
+                  >
+                    Gerar Ranking
                   </Button>
                 </Flex>
 
@@ -290,8 +430,11 @@ const MercadoLivrePage = () => {
                       key={example}
                       type="button"
                       variant="tertiary"
-                      disabled={isRunning}
-                      onClick={() => runTerm(example)}
+                      disabled={isRunning || isPreviewing}
+                      onClick={() => {
+                        setTerm(example);
+                        runPreview(example);
+                      }}
                     >
                       {example}
                     </Button>
@@ -300,6 +443,8 @@ const MercadoLivrePage = () => {
               </Flex>
             </form>
           </Box>
+
+          <PreviewSummary preview={previewResult} />
 
           <Flex direction="column" alignItems="stretch" gap={4}>
             {messages.map((message) => (

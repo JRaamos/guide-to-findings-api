@@ -12,10 +12,18 @@ const DEFAULT_SITE_ID = 'MLB';
 const DEFAULT_LIMIT = 20;
 const DEFAULT_DISPLAY_LIMIT = 10;
 const MINIMUM_HIGHLIGHTS = 10;
-const MINIMUM_PUBLISHABLE_PRODUCTS = 10;
+const DEFAULT_REQUIRED_PUBLISHABLE_PRODUCTS = 10;
 
 const normalizeTerm = (term) => {
   return typeof term === 'string' ? term.trim() : '';
+};
+
+const normalizeRequiredPublishableProducts = (displayLimit) => {
+  const parsedLimit = Number(displayLimit);
+
+  return Number.isInteger(parsedLimit) && parsedLimit > 0
+    ? parsedLimit
+    : DEFAULT_REQUIRED_PUBLISHABLE_PRODUCTS;
 };
 
 const formatCategoryPath = (path = []) => {
@@ -62,6 +70,7 @@ const syncMarketplaceRankingByTerm = async (
   }
 
   const normalizedTerm = normalizeTerm(term);
+  const requiredPublishableProducts = normalizeRequiredPublishableProducts(displayLimit);
 
   if (!normalizedTerm) {
     throw new Error('term is required');
@@ -106,9 +115,9 @@ const syncMarketplaceRankingByTerm = async (
     localSubCategoryId: localCategoryResult.subCategoryId,
   });
 
-  if ((marketplaceRankingResult.totalPublishable || 0) < MINIMUM_PUBLISHABLE_PRODUCTS) {
+  if ((marketplaceRankingResult.totalPublishable || 0) < requiredPublishableProducts) {
     throw new Error(
-      `Marketplace ranking ${marketplaceRankingResult.marketplaceRankingId} has only ${marketplaceRankingResult.totalPublishable || 0} publishable products`
+      `Marketplace ranking ${marketplaceRankingResult.marketplaceRankingId} has only ${marketplaceRankingResult.totalPublishable || 0} publishable products; required ${requiredPublishableProducts}`
     );
   }
 
@@ -120,9 +129,9 @@ const syncMarketplaceRankingByTerm = async (
     localSubCategoryId: localCategoryResult.subCategoryId,
   });
 
-  if ((productResult.importedProducts || 0) < MINIMUM_PUBLISHABLE_PRODUCTS) {
+  if ((productResult.importedProducts || 0) < requiredPublishableProducts) {
     throw new Error(
-      `Marketplace ranking ${marketplaceRankingResult.marketplaceRankingId} imported only ${productResult.importedProducts || 0} products`
+      `Marketplace ranking ${marketplaceRankingResult.marketplaceRankingId} imported only ${productResult.importedProducts || 0} products; required ${requiredPublishableProducts}`
     );
   }
 
@@ -154,6 +163,7 @@ const syncMarketplaceRankingByTerm = async (
       updatedEntries: marketplaceRankingResult.updatedEntries,
       totalHighlights: marketplaceRankingResult.totalHighlights,
       totalPublishable: marketplaceRankingResult.totalPublishable,
+      requiredPublishableProducts,
       publishableRate: marketplaceRankingResult.publishableRate,
     },
     products: {

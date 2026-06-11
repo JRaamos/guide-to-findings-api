@@ -4,6 +4,16 @@ module.exports = {
   routes: [
     {
       method: 'POST',
+      path: '/internal/marketplaces/mercado-livre/ranking-chat-preview',
+      handler: 'mercado-livre.rankingChatPreview',
+      config: {
+        auth: false,
+        policies: [],
+        description: 'Preview Mercado Livre ranking generation context without persistence',
+      },
+    },
+    {
+      method: 'POST',
       path: '/internal/marketplaces/mercado-livre/ranking-chat',
       handler: 'mercado-livre.rankingChat',
       config: {
