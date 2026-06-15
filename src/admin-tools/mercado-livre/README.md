@@ -9,10 +9,11 @@ src/admin/admin/MercadoLivrePage/
 src/admin/app.js
 ```
 
-It calls one internal backend endpoint:
+It calls authenticated Strapi Admin API endpoints:
 
 ```text
-POST /api/internal/marketplaces/mercado-livre/ranking-chat
+POST /ranking-generator/preview
+POST /ranking-generator/generate
 ```
 
 The endpoint runs:

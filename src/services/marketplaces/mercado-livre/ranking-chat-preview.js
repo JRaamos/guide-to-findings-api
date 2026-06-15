@@ -21,6 +21,8 @@ const GENERIC_SUBCATEGORY_NAMES = new Set([
   'outras',
 ]);
 const TERM_STOPWORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'para', 'com', 'e']);
+const GAMER_PRODUCT_PATTERN = /\b(pc gamer|computador gamer|cadeiras? gamer|notebook gamer)\b/i;
+const INCOMPATIBLE_GAMER_CATEGORY_PATTERN = /\b(cartao|cartoes|pre[-\s]?pago|jogos digitais|gift card)\b/i;
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
 
@@ -121,6 +123,39 @@ const serializeMarketplaceCategory = (category) => {
     hasHighlights: Boolean(category.hasHighlights),
     highlightsCount: category.highlightsCount || 0,
     highlightTypes: category.highlightTypes || [],
+  };
+};
+
+const getCategorySearchText = (category) => {
+  if (!category) {
+    return '';
+  }
+
+  return normalizeText([
+    category.name,
+    ...(category.path || []).map((item) => item?.name),
+  ].filter(Boolean).join(' '));
+};
+
+const assessCategorySafety = ({ term, resolvedCategory }) => {
+  const normalizedTerm = normalizeText(term);
+  const categoryText = getCategorySearchText(resolvedCategory);
+  const isUnsafeGamerMatch =
+    GAMER_PRODUCT_PATTERN.test(normalizedTerm) &&
+    INCOMPATIBLE_GAMER_CATEGORY_PATTERN.test(categoryText);
+
+  if (isUnsafeGamerMatch) {
+    return {
+      categoryConfidence: 'low',
+      requiresCategoryReview: true,
+      reason: 'Resolved category appears incompatible with the normalized gamer product term',
+    };
+  }
+
+  return {
+    categoryConfidence: resolvedCategory?.confidence ?? 'medium',
+    requiresCategoryReview: false,
+    reason: null,
   };
 };
 
@@ -252,6 +287,10 @@ const buildRankingChatPreview = async (
         subCategory: null,
         rule: null,
       };
+  const categorySafety = assessCategorySafety({
+    term: commandContext.term,
+    resolvedCategory: categoryResult.bestCategory,
+  });
   const pageReuse = await findReusablePage(strapi, {
     term: commandContext.term,
     commandContext,
@@ -264,8 +303,13 @@ const buildRankingChatPreview = async (
     siteId,
     commandContext,
     editorialPlan,
+    categoryConfidence: categorySafety.categoryConfidence,
+    requiresCategoryReview: categorySafety.requiresCategoryReview,
     category: {
       resolved: Boolean(categoryResult.resolved),
+      categoryConfidence: categorySafety.categoryConfidence,
+      requiresCategoryReview: categorySafety.requiresCategoryReview,
+      reviewReason: categorySafety.reason,
       marketplace: serializeMarketplaceCategory(categoryResult.bestCategory),
       local: localCategory,
       alternatives: (categoryResult.alternatives || []).map(serializeMarketplaceCategory),

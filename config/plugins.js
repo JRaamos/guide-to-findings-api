@@ -3,4 +3,8 @@ module.exports = ({ env }) => ({
     enabled: false,
   },
   "users-permissions": {},
+  "ranking-generator": {
+    enabled: true,
+    resolve: "./src/plugins/ranking-generator",
+  },
 });

@@ -1,0 +1,8 @@
+{
+  "name": "ranking-generator",
+  "version": "0.1.0",
+  "strapi": {
+    "kind": "plugin",
+    "name": "ranking-generator"
+  }
+}

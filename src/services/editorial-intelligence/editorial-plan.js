@@ -8,7 +8,7 @@ const ALLOWED_TEMPLATES = new Set([
   'buying-guide',
   'comparison',
 ]);
-const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'comparison', 'generic']);
+const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'comparison', 'buyingGuide', 'generic']);
 const DEFAULT_LIMIT = 10;
 const DEFAULT_TEMPLATE = 'automatic';
 const DEFAULT_SOURCE_MARKETPLACE = 'mercadoLivre';
@@ -49,6 +49,13 @@ const INVARIABLE_TRAILING_TERMS = new Set([
   'pro',
   'smart',
 ]);
+const EDITORIAL_TERM_NORMALIZATIONS = new Map([
+  ['pc game', 'pc gamer'],
+  ['pc games', 'pc gamer'],
+  ['computador game', 'computador gamer'],
+  ['cadeira game', 'cadeira gamer'],
+  ['cadeiras game', 'cadeiras gamer'],
+]);
 
 const normalizeWhitespace = (value = '') => {
   if (value === null || value === undefined) {
@@ -71,6 +78,12 @@ const removeAccents = (value = '') => {
 
 const normalizeSearchText = (value = '') => {
   return removeAccents(normalizeWhitespace(value)).toLowerCase();
+};
+
+const normalizeEditorialTerm = (value = '') => {
+  const normalizedTerm = normalizeSearchText(value);
+
+  return EDITORIAL_TERM_NORMALIZATIONS.get(normalizedTerm) || normalizedTerm;
 };
 
 const stripUnsafeEditorialText = (value = '') => {
@@ -141,6 +154,12 @@ const pluralizeWord = (word) => {
   return `${word}s`;
 };
 
+const formatTitleTerm = (term) => {
+  return term
+    .replace(/\bpcs gamer\b/g, 'PCs gamer')
+    .replace(/\bpc gamer\b/g, 'PC gamer');
+};
+
 const looksPlural = (term) => {
   const words = getWords(term);
   const lastWord = words[words.length - 1];
@@ -170,7 +189,7 @@ const inferIntent = ({ normalizedTerm, template }) => {
   }
 
   if (template === 'buying-guide') {
-    return 'generic';
+    return 'buyingGuide';
   }
 
   return 'best';
@@ -241,14 +260,18 @@ const getArticle = (pluralTerm) => {
 };
 
 const buildTitleHint = ({ productTerm, productCount, intent }) => {
-  const pluralTerm = pluralizeLastWord(productTerm);
+  const pluralTerm = formatTitleTerm(pluralizeLastWord(productTerm));
 
   if (intent === 'costBenefit') {
     return `Melhores ${pluralTerm} custo-benefício`;
   }
 
   if (intent === 'comparison') {
-    return `Comparativo de ${pluralTerm} para comprar`;
+    return `Comparativo de ${pluralTerm}: veja qual escolher`;
+  }
+
+  if (intent === 'buyingGuide' || intent === 'generic') {
+    return `Guia de compra: como escolher ${pluralTerm}`;
   }
 
   return `${getArticle(pluralTerm)} ${productCount} melhores ${pluralTerm} para comprar`;
@@ -269,6 +292,10 @@ const buildSlugHint = ({ normalizedTerm, productTerm, intent, preferredSlug }) =
     return normalizeSlug(`comparativo ${pluralizeLastWord(productTerm)}`);
   }
 
+  if (intent === 'buyingGuide' || intent === 'generic') {
+    return normalizeSlug(`guia ${pluralizeLastWord(productTerm)}`);
+  }
+
   if (COST_BENEFIT_PATTERN.test(normalizedTerm)) {
     return normalizeSlug(`melhores ${pluralizeLastWord(productTerm)} custo beneficio`);
   }
@@ -285,6 +312,10 @@ const buildFocusKeyword = ({ productTerm, intent }) => {
 
   if (intent === 'comparison') {
     return `comparativo de ${pluralTerm}`;
+  }
+
+  if (intent === 'buyingGuide' || intent === 'generic') {
+    return `guia de ${pluralTerm}`;
   }
 
   return `melhores ${pluralTerm}`;
@@ -333,7 +364,7 @@ const buildEditorialPlan = ({
   const contextTitleHint = commandContext?.titleHint || null;
   const originalTerm = normalizeWhitespace(contextTerm);
   const safeTerm = stripUnsafeEditorialText(originalTerm);
-  const normalizedTerm = normalizeSearchText(safeTerm);
+  const normalizedTerm = normalizeEditorialTerm(safeTerm);
   const productCount = normalizeLimit(contextLimit);
   const safeTemplate = normalizeTemplate(contextTemplate);
   const validIntent = normalizeIntent(contextIntent);

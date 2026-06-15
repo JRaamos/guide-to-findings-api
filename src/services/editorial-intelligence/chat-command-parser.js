@@ -17,7 +17,14 @@ const INTENT_PATTERNS = {
   best: /\bmelhores?\b|\btop\b|\branking\b/i,
 };
 const OPERATIONAL_WORDS = new Set([
+  'vamos',
+  'ver',
+  'mostra',
+  'mostrar',
+  'monta',
+  'montar',
   'quero',
+  'me',
   'fazer',
   'faz',
   'criar',
@@ -49,6 +56,21 @@ const OPERATIONAL_WORDS = new Set([
   'página',
   'qual',
   'comprar',
+]);
+const CONVERSATIONAL_PATTERNS = [
+  /\bvamos\s+ver\b/g,
+  /\bvamos\s+criar\b/g,
+  /\bquero\s+ver\b/g,
+  /\bquero\s+fazer\b/g,
+  /\bquero\s+criar\b/g,
+  /\bme\s+mostra\b/g,
+];
+const EDITORIAL_TERM_NORMALIZATIONS = new Map([
+  ['pc game', 'pc gamer'],
+  ['pc games', 'pc gamer'],
+  ['computador game', 'computador gamer'],
+  ['cadeira game', 'cadeira gamer'],
+  ['cadeiras game', 'cadeiras gamer'],
 ]);
 const INTENT_WORDS = new Set([
   'custo',
@@ -99,6 +121,18 @@ const normalizeComparableText = (value = '') => {
   return removeAccents(value).toLowerCase();
 };
 
+const stripConversationalPhrases = (value = '') => {
+  return CONVERSATIONAL_PATTERNS.reduce((currentValue, pattern) => {
+    return currentValue.replace(pattern, ' ');
+  }, value);
+};
+
+const normalizeEditorialTerm = (term = '') => {
+  const normalizedTerm = normalizeWhitespace(term);
+
+  return EDITORIAL_TERM_NORMALIZATIONS.get(normalizedTerm) || normalizedTerm;
+};
+
 const slugify = (value = '') => {
   return removeAccents(value)
     .toLowerCase()
@@ -125,6 +159,12 @@ const pluralizeWord = (word) => {
   }
 
   return `${word}s`;
+};
+
+const formatTitleTerm = (term) => {
+  return term
+    .replace(/\bpcs gamer\b/g, 'PCs gamer')
+    .replace(/\bpc gamer\b/g, 'PC gamer');
 };
 
 const looksPlural = (term) => {
@@ -277,7 +317,7 @@ const stripUseCaseModifier = (message, intentModifier) => {
 };
 
 const extractTerm = ({ message, intentModifier }) => {
-  const normalizedMessage = stripUseCaseModifier(normalizeComparableText(message), intentModifier)
+  const normalizedMessage = stripUseCaseModifier(stripConversationalPhrases(normalizeComparableText(message)), intentModifier)
     .replace(/\b\d{1,3}\b/g, ' ')
     .replace(/[-]+/g, ' ');
   const tokens = normalizedMessage
@@ -287,7 +327,7 @@ const extractTerm = ({ message, intentModifier }) => {
     .filter((token) => !OPERATIONAL_WORDS.has(token))
     .filter((token) => !INTENT_WORDS.has(token));
 
-  return normalizeWhitespace(tokens.join(' '));
+  return normalizeEditorialTerm(tokens.join(' '));
 };
 
 const getConfidence = (term) => {
@@ -329,10 +369,10 @@ const buildTitleHint = ({ term, displayLimit, editorialIntent, intentModifier })
     return null;
   }
 
-  const pluralTerm = pluralizeLastWord(term);
+  const pluralTerm = formatTitleTerm(pluralizeLastWord(term));
 
   if (editorialIntent === 'comparison') {
-    return `Comparativo de ${pluralTerm}`;
+    return `Comparativo de ${pluralTerm}: veja qual escolher`;
   }
 
   if (editorialIntent === 'costBenefit') {

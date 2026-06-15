@@ -12,3 +12,7 @@ Responsibilities:
 
 This tool is not the routine content creation path. Routine creation starts in
 `Gerador de Rankings`.
+
+Security note: this admin tool still uses legacy internal Content API routes.
+It should be migrated to authenticated Strapi Admin API routes in a dedicated
+follow-up phase, matching the `ranking-generator` plugin route pattern.

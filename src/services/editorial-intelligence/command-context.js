@@ -143,7 +143,7 @@ const buildCommandContext = ({
   titleHint,
 } = {}) => {
   const hasMessage = Boolean(normalizeWhitespace(message));
-  const base = hasMessage
+  const parsedBase = hasMessage
     ? buildMessageBase(message)
     : buildTermBase({
         term,
@@ -156,6 +156,17 @@ const buildCommandContext = ({
         preferredSlug,
         titleHint,
       });
+  const base = {
+    ...parsedBase,
+    term: normalizeWhitespace(term) || parsedBase.term,
+    fetchLimit: fetchLimit || parsedBase.fetchLimit,
+    displayLimit: limit || displayLimit || parsedBase.displayLimit,
+    editorialTemplate: editorialTemplate || parsedBase.editorialTemplate,
+    editorialIntent: editorialIntent || parsedBase.editorialIntent,
+    intentModifier: intentModifier || parsedBase.intentModifier,
+    preferredSlug: preferredSlug || parsedBase.preferredSlug,
+    titleHint: titleHint || parsedBase.titleHint,
+  };
   const warnings = [...(base.warnings || [])];
   const normalizedDisplayLimit = normalizeDisplayLimit({
     displayLimit: base.displayLimit,

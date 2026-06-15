@@ -69,6 +69,13 @@ module.exports = () => ({
       message,
       siteId: payload.siteId || process.env.MERCADO_LIVRE_SITE_ID || DEFAULT_SITE_ID,
       limit: payload.limit || DEFAULT_LIMIT,
+      fetchLimit: payload.fetchLimit,
+      displayLimit: payload.displayLimit,
+      editorialTemplate: payload.editorialTemplate,
+      editorialIntent: payload.editorialIntent,
+      intentModifier: payload.intentModifier,
+      preferredSlug: payload.preferredSlug,
+      titleHint: payload.titleHint,
       autoPublish: normalizeBoolean(payload.autoPublish, true),
     });
 

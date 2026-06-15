@@ -42,13 +42,33 @@ const toLegacyResult = (pipelineResult) => ({
 
 const syncGenerateAndPublishMarketplaceRanking = async (
   strapi,
-  { message, term, siteId = DEFAULT_SITE_ID, limit = DEFAULT_LIMIT, autoPublish = true } = {}
+  {
+    message,
+    term,
+    siteId = DEFAULT_SITE_ID,
+    limit = DEFAULT_LIMIT,
+    fetchLimit,
+    displayLimit,
+    editorialTemplate,
+    editorialIntent,
+    intentModifier,
+    preferredSlug,
+    titleHint,
+    autoPublish = true,
+  } = {}
 ) => {
   const pipelineResult = await runMarketplacePipeline(strapi, {
     message,
     term,
     siteId,
     limit,
+    fetchLimit,
+    displayLimit,
+    editorialTemplate,
+    editorialIntent,
+    intentModifier,
+    preferredSlug,
+    titleHint,
     autoGenerate: true,
     autoPublish,
   });

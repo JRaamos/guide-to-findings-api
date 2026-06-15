@@ -1,6 +1,10 @@
 'use strict';
 
 module.exports = {
+  async disabledInternalRoute(ctx) {
+    return ctx.forbidden('This internal Content API route was moved to the Strapi Admin API.');
+  },
+
   async rankingChatPreview(ctx) {
     const mercadoLivreService = strapi.service('api::mercado-livre.mercado-livre');
 
