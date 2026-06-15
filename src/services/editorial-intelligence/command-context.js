@@ -160,7 +160,7 @@ const buildCommandContext = ({
     ...parsedBase,
     term: normalizeWhitespace(term) || parsedBase.term,
     fetchLimit: fetchLimit || parsedBase.fetchLimit,
-    displayLimit: limit || displayLimit || parsedBase.displayLimit,
+    displayLimit: displayLimit || parsedBase.displayLimit || limit,
     editorialTemplate: editorialTemplate || parsedBase.editorialTemplate,
     editorialIntent: editorialIntent || parsedBase.editorialIntent,
     intentModifier: intentModifier || parsedBase.intentModifier,
