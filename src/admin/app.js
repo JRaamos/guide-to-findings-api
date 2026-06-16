@@ -2,7 +2,7 @@ import AuthLogo from './extensions/auth_logo.png';
 import MenuLogo from './extensions/menu_logo.png';
 import favicon from './extensions/favicon.ico';
 import PT_BR from './extensions/Translate/pt';
-import { CheckCircle, ShoppingCart } from '@strapi/icons';
+import { CheckCircle, Search, ShoppingCart } from '@strapi/icons';
 
 
 
@@ -12,6 +12,7 @@ PT_BR['Auth.form.welcome.title'] = ' ';
 PT_BR['Auth.form.welcome.subtitle'] = 'Backoffice';
 PT_BR['ranking-generator.menu.label'] = 'Gerador de Rankings';
 PT_BR['publication-workflow.menu.label'] = 'Revisoes Necessarias';
+PT_BR['seo-intelligence.menu.label'] = 'SEO Intelligence';
 
 
 const config = {
@@ -68,6 +69,22 @@ const bootstrap = (app) => {
     },
     permissions: [],
     position: 6,
+  });
+
+  app.addMenuLink({
+    to: '/seo-intelligence',
+    icon: Search,
+    intlLabel: {
+      id: 'seo-intelligence.menu.label',
+      defaultMessage: 'SEO Intelligence',
+    },
+    Component: async () => {
+      const component = await import('./admin/SeoIntelligencePage');
+
+      return { default: component.default };
+    },
+    permissions: [],
+    position: 7,
   });
 };
 
