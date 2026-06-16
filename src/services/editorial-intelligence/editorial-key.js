@@ -5,7 +5,7 @@ const YEAR_PATTERN = /\b20\d{2}\b/g;
 const DATE_PATTERN = /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g;
 const COST_BENEFIT_PATTERN = /\bcusto\s*-?\s*beneficio\b|\bcusto\s*-?\s*benefício\b|\bbaratos?\b|\bbons\s+e\s+baratos\b/gi;
 const COMPARISON_PATTERN = /\bcomparativo\b|\bcomparacao\b|\bcomparação\b|\bversus\b|\bvs\b/gi;
-const BEST_WORDS = /\b(?:melhor|melhores|top|ranking|comprar|compra|qual|quais|mais|vendido|vendidos|vendida|vendidas|guia|escolha|os|as|o|a|de|do|da|dos|das|em|no|na|nos|nas)\b/g;
+const BEST_WORDS = /\b(?:melhor|melhores|top|ranking|comprar|compra|qual|quais|mais|vendido|vendidos|vendida|vendidas|guia|escolha|sua|seu|para|os|as|o|a|de|do|da|dos|das|em|no|na|nos|nas)\b/g;
 const GENERIC_WORDS = /\b(?:para|com|sem|e)\b/g;
 const INTENT_ALIASES = new Map([
   ['generic', 'buyingGuide'],
@@ -34,6 +34,7 @@ const normalizeKeyText = (value = '') => {
     .replace(DATE_PATTERN, '')
     .replace(MARKETPLACE_PATTERN, '')
     .replace(/[-_]+/g, ' ')
+    .replace(MARKETPLACE_PATTERN, '')
     .replace(/[^a-z0-9\s]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -80,9 +81,7 @@ const singularizeEditorialTerm = (term = '') => {
     return '';
   }
 
-  words[words.length - 1] = singularizeWord(words[words.length - 1]);
-
-  return words.join(' ');
+  return [...new Set(words.map(singularizeWord))].join(' ');
 };
 
 const normalizeIntent = (intent = '') => {

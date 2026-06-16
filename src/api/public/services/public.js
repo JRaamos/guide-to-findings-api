@@ -1,6 +1,9 @@
 'use strict';
 
 const crypto = require('crypto');
+const {
+  getRelatedPages,
+} = require('../../../services/seo-intelligence/internal-linking');
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ALLOWED_CLICK_EVENT_TYPES = ['productClick', 'affiliateClick', 'ctaClick'];
@@ -170,11 +173,14 @@ const serializeRelatedPage = (page) => {
   const categorySlug = page.category?.slug || null;
 
   return {
-    id: page.id,
+    id: page.id || page.pageId,
+    pageId: page.pageId || page.id,
     title: page.title,
     slug: page.slug,
-    categorySlug,
-    url: categorySlug ? `/${categorySlug}/${page.slug}` : null,
+    categorySlug: page.categorySlug || categorySlug,
+    url: page.url || (categorySlug ? `/${categorySlug}/${page.slug}` : null),
+    editorialIntent: page.editorialIntent || null,
+    score: page.score || null,
   };
 };
 
@@ -242,9 +248,9 @@ const buildCategoryFallbackSeo = (category) => {
   };
 };
 
-const serializePage = (page) => {
+const serializePage = (page, dynamicRelatedPages = null) => {
   const activeFaqs = (page.faqs || []).filter((faq) => faq.status === 'active');
-  const publishedRelatedPages = (page.relatedPages || []).filter(
+  const publishedRelatedPages = dynamicRelatedPages || (page.relatedPages || []).filter(
     (relatedPage) => relatedPage.status === 'published'
   );
 
@@ -506,6 +512,11 @@ module.exports = () => ({
       return null;
     }
 
-    return serializePage(page);
+    const dynamicRelatedPages = await getRelatedPages(strapi, {
+      pageId: page.id,
+      limit: 8,
+    });
+
+    return serializePage(page, dynamicRelatedPages);
   },
 });
