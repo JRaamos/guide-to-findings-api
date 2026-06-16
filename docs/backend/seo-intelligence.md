@@ -28,6 +28,37 @@ metadata
 
 Esta fase nao usa OpenAI, nao chama o Marketplace Pipeline, nao cria Page, nao publica conteudo e nao altera o Publication Workflow. Todas as keywords sao geradas por templates deterministicas e regras locais.
 
+## EditorialTopic Queue
+
+A fila editorial persistida comeca em:
+
+```txt
+Keyword Discovery
+    ->
+EditorialTopic pending
+    ->
+aprovacao futura
+    ->
+geracao futura
+```
+
+O content-type `EditorialTopic` guarda cada keyword normalizada como uma oportunidade editorial unica. A importacao e idempotente por `normalizedKeyword`: uma segunda execucao para o mesmo termo nao cria duplicatas.
+
+Topics novos entram com:
+
+```txt
+status = pending
+sourceMarketplace = mercadoLivre
+```
+
+Quando um topic existente ja estiver `approved`, `processing`, `published` ou `rejected`, a importacao nao sobrescreve esse status. Ela tambem nao muda decisoes editoriais ja tomadas. Para registros existentes, apenas campos seguros podem ser complementados: prioridade maior, metadata adicional e informacoes de origem ainda vazias.
+
+Uso:
+
+```bash
+yarn import:keywords notebooks
+```
+
 ## Exemplos de uso
 
 ```bash

@@ -1,0 +1,95 @@
+{
+  "kind": "collectionType",
+  "collectionName": "editorial_topics",
+  "info": {
+    "singularName": "editorial-topic",
+    "pluralName": "editorial-topics",
+    "displayName": "EditorialTopic",
+    "description": "Editorial keyword/topic queue for SEO Intelligence."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "keyword": {
+      "type": "string",
+      "required": true
+    },
+    "normalizedKeyword": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "intent": {
+      "type": "enumeration",
+      "enum": [
+        "best",
+        "costBenefit",
+        "comparison",
+        "buyingGuide",
+        "useCase"
+      ]
+    },
+    "template": {
+      "type": "enumeration",
+      "enum": [
+        "automatic",
+        "top-list",
+        "cost-benefit",
+        "comparison",
+        "buying-guide"
+      ]
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "approved",
+        "processing",
+        "published",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "priority": {
+      "type": "integer",
+      "default": 50
+    },
+    "source": {
+      "type": "string"
+    },
+    "sourceMarketplace": {
+      "type": "string"
+    },
+    "sourceTerm": {
+      "type": "string"
+    },
+    "sourceCategoryId": {
+      "type": "string"
+    },
+    "sourceCategoryName": {
+      "type": "string"
+    },
+    "page": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::page.page"
+    },
+    "metadata": {
+      "type": "json"
+    },
+    "generatedAt": {
+      "type": "datetime"
+    },
+    "approvedAt": {
+      "type": "datetime"
+    },
+    "publishedAt": {
+      "type": "datetime"
+    },
+    "rejectedAt": {
+      "type": "datetime"
+    }
+  }
+}

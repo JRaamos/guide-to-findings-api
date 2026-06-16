@@ -632,6 +632,60 @@ export interface ApiClickEventClickEvent extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiEditorialTopicEditorialTopic
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'editorial_topics';
+  info: {
+    description: 'Editorial keyword/topic queue for SEO Intelligence.';
+    displayName: 'EditorialTopic';
+    pluralName: 'editorial-topics';
+    singularName: 'editorial-topic';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    approvedAt: Schema.Attribute.DateTime;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    generatedAt: Schema.Attribute.DateTime;
+    intent: Schema.Attribute.Enumeration<
+      ['best', 'costBenefit', 'comparison', 'buyingGuide', 'useCase']
+    >;
+    keyword: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::editorial-topic.editorial-topic'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    normalizedKeyword: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    page: Schema.Attribute.Relation<'manyToOne', 'api::page.page'>;
+    priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<50>;
+    publishedAt: Schema.Attribute.DateTime;
+    rejectedAt: Schema.Attribute.DateTime;
+    source: Schema.Attribute.String;
+    sourceCategoryId: Schema.Attribute.String;
+    sourceCategoryName: Schema.Attribute.String;
+    sourceMarketplace: Schema.Attribute.String;
+    sourceTerm: Schema.Attribute.String;
+    status: Schema.Attribute.Enumeration<
+      ['pending', 'approved', 'processing', 'published', 'rejected']
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    template: Schema.Attribute.Enumeration<
+      ['automatic', 'top-list', 'cost-benefit', 'comparison', 'buying-guide']
+    >;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
   collectionName: 'faqs';
   info: {
@@ -1660,6 +1714,7 @@ declare module '@strapi/strapi' {
       'api::ai-generation-log.ai-generation-log': ApiAiGenerationLogAiGenerationLog;
       'api::category.category': ApiCategoryCategory;
       'api::click-event.click-event': ApiClickEventClickEvent;
+      'api::editorial-topic.editorial-topic': ApiEditorialTopicEditorialTopic;
       'api::faq.faq': ApiFaqFaq;
       'api::marketplace-ranking-entry.marketplace-ranking-entry': ApiMarketplaceRankingEntryMarketplaceRankingEntry;
       'api::marketplace-ranking.marketplace-ranking': ApiMarketplaceRankingMarketplaceRanking;
