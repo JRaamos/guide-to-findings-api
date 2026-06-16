@@ -37,6 +37,7 @@ const MONTH_PATTERN = /\b(?:janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|a
 
 const uid = {
   ranking: 'api::ranking.ranking',
+  rankingItem: 'api::ranking-item.ranking-item',
   page: 'api::page.page',
 };
 
@@ -108,6 +109,250 @@ const getPage = (strapi, pageId) => {
       ranking: true,
     },
   });
+};
+
+const getRankingWithEditorialRelations = (strapi, rankingId) => {
+  return query(strapi, uid.ranking).findOne({
+    where: {
+      id: rankingId,
+    },
+    populate: {
+      page: true,
+      category: true,
+      subCategory: true,
+    },
+  });
+};
+
+const findRankingByEditorialKey = (strapi, editorialKey) => {
+  if (!editorialKey) {
+    return null;
+  }
+
+  return query(strapi, uid.ranking).findOne({
+    where: {
+      editorialKey,
+    },
+    populate: {
+      page: true,
+      category: true,
+      subCategory: true,
+    },
+  });
+};
+
+const getUniqueRankingSlug = async (strapi, baseSlug, fallbackId) => {
+  const safeBaseSlug = normalizeText(baseSlug || 'ranking-editorial').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'ranking-editorial';
+  const candidates = [
+    safeBaseSlug,
+    `${safeBaseSlug}-${fallbackId}`,
+    `${safeBaseSlug}-editorial-${fallbackId}`,
+  ];
+
+  for (const candidate of candidates) {
+    const existing = await query(strapi, uid.ranking).findOne({
+      where: {
+        slug: candidate,
+      },
+    });
+
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `${safeBaseSlug}-${Date.now()}`;
+};
+
+const getRankingTypeForIntent = (intent) => {
+  if (intent === 'costBenefit') {
+    return 'bestCostBenefit';
+  }
+
+  if (intent === 'comparison') {
+    return 'comparison';
+  }
+
+  return 'top10';
+};
+
+const getActiveRankingItems = (strapi, rankingId) => {
+  return query(strapi, uid.rankingItem).findMany({
+    where: {
+      ranking: {
+        id: rankingId,
+      },
+      status: 'active',
+    },
+    populate: ['product', 'affiliateLink'],
+    orderBy: {
+      position: 'asc',
+    },
+    limit: 1000,
+  });
+};
+
+const copyRankingItemsForEditorialRanking = async (strapi, sourceRankingId, targetRankingId) => {
+  const sourceItems = await getActiveRankingItems(strapi, sourceRankingId);
+  const targetItems = await query(strapi, uid.rankingItem).findMany({
+    where: {
+      ranking: {
+        id: targetRankingId,
+      },
+    },
+    populate: ['product', 'affiliateLink'],
+    limit: 1000,
+  });
+  const targetByPosition = new Map(targetItems.map((item) => [item.position, item]));
+  const activeTargetIds = new Set();
+
+  for (const sourceItem of sourceItems) {
+    const existing = targetByPosition.get(sourceItem.position);
+    const data = {
+      position: sourceItem.position,
+      title: sourceItem.title,
+      summary: sourceItem.summary,
+      pros: sourceItem.pros || [],
+      cons: sourceItem.cons || [],
+      highlight: sourceItem.highlight,
+      score: sourceItem.score,
+      ctaText: sourceItem.ctaText,
+      status: 'active',
+      ranking: targetRankingId,
+      product: sourceItem.product?.id || null,
+      affiliateLink: sourceItem.affiliateLink?.id || null,
+    };
+    const record = existing
+      ? await query(strapi, uid.rankingItem).update({
+          where: {
+            id: existing.id,
+          },
+          data,
+        })
+      : await query(strapi, uid.rankingItem).create({
+          data,
+        });
+
+    activeTargetIds.add(record.id);
+  }
+
+  for (const targetItem of targetItems) {
+    if (!activeTargetIds.has(targetItem.id) && targetItem.status !== 'inactive') {
+      await query(strapi, uid.rankingItem).update({
+        where: {
+          id: targetItem.id,
+        },
+        data: {
+          status: 'inactive',
+        },
+      });
+    }
+  }
+};
+
+const updateRankingEditorialFields = (strapi, rankingId, editorialPlan) => {
+  if (!rankingId || !editorialPlan?.editorialKey) {
+    return null;
+  }
+
+  return query(strapi, uid.ranking).update({
+    where: {
+      id: rankingId,
+    },
+    data: {
+      editorialIntent: editorialPlan.intent || null,
+      editorialKey: editorialPlan.editorialKey,
+    },
+  });
+};
+
+const updatePageEditorialFields = (strapi, pageId, editorialPlan) => {
+  if (!pageId || !editorialPlan?.editorialKey) {
+    return null;
+  }
+
+  return query(strapi, uid.page).update({
+    where: {
+      id: pageId,
+    },
+    data: {
+      editorialIntent: editorialPlan.intent || null,
+      editorialKey: editorialPlan.editorialKey,
+    },
+  });
+};
+
+const annotateEditorialEntities = async (strapi, { rankingId, pageId, editorialPlan }) => {
+  await updateRankingEditorialFields(strapi, rankingId, editorialPlan);
+  await updatePageEditorialFields(strapi, pageId, editorialPlan);
+};
+
+const isRankingCompatibleWithEditorialPlan = (ranking, editorialPlan) => {
+  if (!editorialPlan?.editorialKey) {
+    return true;
+  }
+
+  if (ranking?.editorialKey) {
+    return ranking.editorialKey === editorialPlan.editorialKey;
+  }
+
+  if (!ranking?.page?.id) {
+    return true;
+  }
+
+  if (ranking.page.editorialKey) {
+    return ranking.page.editorialKey === editorialPlan.editorialKey;
+  }
+
+  return editorialPlan.intent === 'best';
+};
+
+const ensureEditorialRankingForPlan = async (strapi, syncResult, editorialPlan) => {
+  const sourceRankingId = syncResult?.editorialRanking?.id;
+
+  if (!sourceRankingId || !editorialPlan?.editorialKey) {
+    return syncResult;
+  }
+
+  const sourceRanking = await getRankingWithEditorialRelations(strapi, sourceRankingId);
+
+  if (isRankingCompatibleWithEditorialPlan(sourceRanking, editorialPlan)) {
+    const record = await updateRankingEditorialFields(strapi, sourceRanking.id, editorialPlan);
+
+    syncResult.editorialRanking.id = record?.id || sourceRanking.id;
+    return syncResult;
+  }
+
+  const existingIntentRanking = await findRankingByEditorialKey(strapi, editorialPlan.editorialKey);
+  const targetRanking = existingIntentRanking || await query(strapi, uid.ranking).create({
+    data: {
+      title: editorialPlan.titleHint || sourceRanking.title,
+      slug: await getUniqueRankingSlug(strapi, editorialPlan.slugHint || sourceRanking.slug, sourceRanking.id),
+      description: sourceRanking.description || null,
+      searchIntent: editorialPlan.focusKeyword || null,
+      rankingType: getRankingTypeForIntent(editorialPlan.intent),
+      status: sourceRanking.status || 'draft',
+      generatedByAi: false,
+      category: sourceRanking.category?.id || null,
+      subCategory: sourceRanking.subCategory?.id || null,
+      editorialIntent: editorialPlan.intent || null,
+      editorialKey: editorialPlan.editorialKey,
+    },
+  });
+
+  if (existingIntentRanking) {
+    await updateRankingEditorialFields(strapi, targetRanking.id, editorialPlan);
+  }
+
+  await copyRankingItemsForEditorialRanking(strapi, sourceRanking.id, targetRanking.id);
+
+  syncResult.editorialRanking = {
+    ...syncResult.editorialRanking,
+    id: targetRanking.id,
+    created: !existingIntentRanking,
+  };
+
+  return syncResult;
 };
 
 const addValidationError = (errors, code, message, details = {}) => {
@@ -535,6 +780,11 @@ const withPublicationResult = (result, publication) => ({
 
 const buildReusedPageResult = async (strapi, result, pageReuse) => {
   const page = await getPage(strapi, pageReuse.pageId);
+  await annotateEditorialEntities(strapi, {
+    rankingId: result.editorialRanking?.id || page?.ranking?.id || null,
+    pageId: page?.id || pageReuse.pageId,
+    editorialPlan: result.editorialPlan,
+  });
   const baseResult = withAiResult(withPageReuseResult(result, pageReuse), {
     generated: false,
     pageId: page?.id || pageReuse.pageId,
@@ -655,9 +905,10 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     limit: commandContext.fetchLimit,
     displayLimit: commandContext.displayLimit,
   });
+  await ensureEditorialRankingForPlan(strapi, syncResult, editorialPlan);
   warnings.push(...(syncResult.warnings || []));
   errors.push(...(syncResult.errors || []));
-  const result = buildBaseResult({
+  let result = buildBaseResult({
     syncResult,
     term: normalizedTerm,
     siteId,
@@ -696,7 +947,12 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     return buildReusedPageResult(strapi, result, pageReuse);
   }
 
-  if (preGeneration.ranking?.page?.status === 'published') {
+  result = withPageReuseResult(result, pageReuse);
+
+  if (
+    preGeneration.ranking?.page?.status === 'published' &&
+    isRankingCompatibleWithEditorialPlan(preGeneration.ranking, editorialPlan)
+  ) {
     warnings.push({
       step: 'marketplace-pipeline',
       message: 'Ranking already has a published Page; skipping generation and publication',
@@ -705,6 +961,11 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
 
     const publishedPage = await getPage(strapi, preGeneration.ranking.page.id);
     const publicCheck = await verifyPublicAvailability(strapi, publishedPage);
+    await annotateEditorialEntities(strapi, {
+      rankingId: preGeneration.ranking.id,
+      pageId: publishedPage.id,
+      editorialPlan,
+    });
 
     return withPublicationResult(
       withAiResult(result, {
@@ -738,6 +999,11 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
   const generated = await generatePageFromRanking(strapi, {
     rankingId,
     commandContext,
+    editorialPlan,
+  });
+  await annotateEditorialEntities(strapi, {
+    rankingId,
+    pageId: generated.pageId,
     editorialPlan,
   });
   const generatedResult = withAiResult(result, {

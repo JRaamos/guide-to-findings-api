@@ -910,6 +910,8 @@ export interface ApiPagePage extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    editorialIntent: Schema.Attribute.String;
+    editorialKey: Schema.Attribute.String;
     excerpt: Schema.Attribute.Text;
     faqs: Schema.Attribute.Relation<'oneToMany', 'api::faq.faq'>;
     featuredImage: Schema.Attribute.Media<'images'>;
@@ -1073,6 +1075,8 @@ export interface ApiRankingRanking extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
+    editorialIntent: Schema.Attribute.String;
+    editorialKey: Schema.Attribute.String;
     editorialNotes: Schema.Attribute.Text;
     evaluationCriteria: Schema.Attribute.JSON;
     generatedByAi: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;

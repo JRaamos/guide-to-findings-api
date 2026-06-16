@@ -29,6 +29,12 @@
     "editorialNotes": {
       "type": "text"
     },
+    "editorialIntent": {
+      "type": "string"
+    },
+    "editorialKey": {
+      "type": "string"
+    },
     "evaluationCriteria": {
       "type": "json"
     },

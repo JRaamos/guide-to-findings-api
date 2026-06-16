@@ -58,6 +58,12 @@
     "canonicalUrl": {
       "type": "string"
     },
+    "editorialIntent": {
+      "type": "string"
+    },
+    "editorialKey": {
+      "type": "string"
+    },
     "approvedAt": {
       "type": "datetime"
     },

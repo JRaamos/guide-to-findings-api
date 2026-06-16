@@ -3,6 +3,10 @@
 const uid = {
   page: 'api::page.page',
 };
+const {
+  buildEditorialKey,
+  normalizeIntent,
+} = require('./editorial-key');
 
 const MARKETPLACE_PATTERN = /\bmercado\s+livre\b|\bmercadolivre\b|\bmlb\b/gi;
 const YEAR_PATTERN = /\b20\d{2}\b/g;
@@ -166,6 +170,67 @@ const findPageBySlug = (strapi, slug) => {
   });
 };
 
+const getPageEditorialKey = (page) => {
+  return page?.editorialKey || page?.ranking?.editorialKey || null;
+};
+
+const getPageEditorialIntent = (page) => {
+  return page?.editorialIntent || page?.ranking?.editorialIntent || inferIntentFromTerm(`${page?.slug || ''} ${page?.title || ''}`);
+};
+
+const isLegacyFallbackAllowed = ({ page, inputIntent, exactSlug = false }) => {
+  if (getPageEditorialKey(page)) {
+    return false;
+  }
+
+  if (exactSlug) {
+    return getPageEditorialIntent(page) === inputIntent;
+  }
+
+  return inputIntent === 'best';
+};
+
+const isPageCompatibleWithEditorialKey = ({ page, editorialKey, inputIntent, exactSlug = false }) => {
+  if (!page) {
+    return false;
+  }
+
+  if (!editorialKey) {
+    return true;
+  }
+
+  const pageEditorialKey = getPageEditorialKey(page);
+
+  if (pageEditorialKey) {
+    return pageEditorialKey === editorialKey;
+  }
+
+  return isLegacyFallbackAllowed({
+    page,
+    inputIntent,
+    exactSlug,
+  });
+};
+
+const findPageByEditorialKey = async (strapi, editorialKey) => {
+  if (!editorialKey) {
+    return null;
+  }
+
+  const pages = await query(strapi, uid.page).findMany({
+    where: {
+      pageType: 'ranking',
+      status: {
+        $in: REUSABLE_STATUSES,
+      },
+    },
+    populate: getPagePopulate(),
+    limit: 200,
+  });
+
+  return pages.find((page) => getPageEditorialKey(page) === editorialKey) || null;
+};
+
 const findPageByEquivalentTerm = async (strapi, { termKey, intent, preferredSlug }) => {
   if (!termKey || intent !== 'best') {
     return null;
@@ -228,26 +293,57 @@ const findReusablePage = async (strapiOrOptions = {}, maybeOptions) => {
 
   const { term, commandContext, editorialPlan, ranking } = options;
   const rankingPage = ranking?.page || null;
+  const contextTerm = commandContext?.normalizedTerm || commandContext?.term || term;
+  const inputIntent = normalizeIntent(editorialPlan?.intent || commandContext?.editorialIntent || inferIntentFromTerm(contextTerm));
+  const editorialKey = editorialPlan?.editorialKey || buildEditorialKey({
+    term: contextTerm || editorialPlan?.normalizedTerm || editorialPlan?.term,
+    normalizedTerm: editorialPlan?.normalizedTerm,
+    intent: inputIntent,
+    intentModifier: editorialPlan?.intentModifier || commandContext?.intentModifier,
+  });
 
-  if (rankingPage?.id && REUSABLE_STATUSES.includes(rankingPage.status)) {
+  if (
+    rankingPage?.id &&
+    REUSABLE_STATUSES.includes(rankingPage.status) &&
+    isPageCompatibleWithEditorialKey({
+      page: rankingPage,
+      editorialKey,
+      inputIntent,
+    })
+  ) {
     return buildResultFromPage({
       page: rankingPage,
       reason: 'Ranking already has a reusable Page',
     });
   }
 
+  const editorialKeyPage = await findPageByEditorialKey(strapi, editorialKey);
+
+  if (editorialKeyPage) {
+    return buildResultFromPage({
+      page: editorialKeyPage,
+      reason: 'Found Page with exact editorialKey',
+    });
+  }
+
   const slugHint = normalizeSlug(editorialPlan?.slugHint);
   const exactSlugPage = await findPageBySlug(strapi, slugHint);
 
-  if (exactSlugPage) {
+  if (
+    exactSlugPage &&
+    isPageCompatibleWithEditorialKey({
+      page: exactSlugPage,
+      editorialKey,
+      inputIntent,
+      exactSlug: true,
+    })
+  ) {
     return buildResultFromPage({
       page: exactSlugPage,
       reason: 'Found Page with exact editorial slug',
     });
   }
 
-  const contextTerm = commandContext?.normalizedTerm || commandContext?.term || term;
-  const inputIntent = editorialPlan?.intent || commandContext?.editorialIntent || inferIntentFromTerm(contextTerm);
   const termKey = normalizeEditorialTerm(
     contextTerm || editorialPlan?.normalizedTerm || editorialPlan?.term
   );
@@ -257,7 +353,14 @@ const findReusablePage = async (strapiOrOptions = {}, maybeOptions) => {
     preferredSlug: slugHint,
   });
 
-  if (equivalentPage) {
+  if (
+    equivalentPage &&
+    isPageCompatibleWithEditorialKey({
+      page: equivalentPage,
+      editorialKey,
+      inputIntent,
+    })
+  ) {
     return buildResultFromPage({
       page: equivalentPage,
       reason: 'Found Page with equivalent normalized editorial term',

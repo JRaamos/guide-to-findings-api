@@ -1,5 +1,9 @@
 'use strict';
 
+const {
+  buildEditorialKey,
+} = require('./editorial-key');
+
 const ALLOWED_LIMITS = new Set([5, 10, 15, 20]);
 const ALLOWED_TEMPLATES = new Set([
   'automatic',
@@ -8,7 +12,7 @@ const ALLOWED_TEMPLATES = new Set([
   'buying-guide',
   'comparison',
 ]);
-const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'comparison', 'buyingGuide', 'generic']);
+const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'comparison', 'buyingGuide', 'useCase', 'generic']);
 const DEFAULT_LIMIT = 10;
 const DEFAULT_TEMPLATE = 'automatic';
 const DEFAULT_SOURCE_MARKETPLACE = 'mercadoLivre';
@@ -274,6 +278,10 @@ const buildTitleHint = ({ productTerm, productCount, intent }) => {
     return `Guia de compra: como escolher ${pluralTerm}`;
   }
 
+  if (intent === 'useCase') {
+    return `${getArticle(pluralTerm)} ${productCount} melhores ${pluralTerm} para comprar`;
+  }
+
   return `${getArticle(pluralTerm)} ${productCount} melhores ${pluralTerm} para comprar`;
 };
 
@@ -296,6 +304,10 @@ const buildSlugHint = ({ normalizedTerm, productTerm, intent, preferredSlug }) =
     return normalizeSlug(`guia ${pluralizeLastWord(productTerm)}`);
   }
 
+  if (intent === 'useCase') {
+    return normalizeSlug(`melhores ${pluralizeLastWord(productTerm)}`);
+  }
+
   if (COST_BENEFIT_PATTERN.test(normalizedTerm)) {
     return normalizeSlug(`melhores ${pluralizeLastWord(productTerm)} custo beneficio`);
   }
@@ -316,6 +328,10 @@ const buildFocusKeyword = ({ productTerm, intent }) => {
 
   if (intent === 'buyingGuide' || intent === 'generic') {
     return `guia de ${pluralTerm}`;
+  }
+
+  if (intent === 'useCase') {
+    return `melhores ${pluralTerm}`;
   }
 
   return `melhores ${pluralTerm}`;
@@ -360,6 +376,7 @@ const buildEditorialPlan = ({
   const contextLimit = commandContext?.productCount || commandContext?.displayLimit || limit;
   const contextTemplate = commandContext?.editorialTemplate || template;
   const contextIntent = commandContext?.editorialIntent || editorialIntent;
+  const contextIntentModifier = commandContext?.intentModifier || null;
   const contextPreferredSlug = commandContext?.preferredSlug || preferredSlug;
   const contextTitleHint = commandContext?.titleHint || null;
   const originalTerm = normalizeWhitespace(contextTerm);
@@ -384,6 +401,12 @@ const buildEditorialPlan = ({
     intent,
     preferredSlug: contextPreferredSlug,
   });
+  const editorialKey = buildEditorialKey({
+    term: productTerm || normalizedTerm,
+    normalizedTerm,
+    intent,
+    intentModifier: contextIntentModifier,
+  });
 
   return {
     term: originalTerm,
@@ -391,6 +414,8 @@ const buildEditorialPlan = ({
     productCount,
     template: safeTemplate,
     intent,
+    intentModifier: contextIntentModifier,
+    editorialKey,
     titleHint: titleHint.slice(0, MAX_TITLE_LENGTH),
     slugHint,
     focusKeyword: buildFocusKeyword({
