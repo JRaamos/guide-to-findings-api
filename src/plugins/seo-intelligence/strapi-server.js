@@ -39,6 +39,14 @@ module.exports = () => ({
             policies: ['admin::isAuthenticatedAdmin'],
           },
         },
+        {
+          method: 'POST',
+          path: '/topics/:id/generate',
+          handler: 'topics.generate',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
       ],
     },
   },
@@ -91,6 +99,19 @@ module.exports = () => ({
           };
         } catch (error) {
           strapi.log.warn(`[SEO Intelligence] Move topic to pending failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
+
+      async generate(ctx) {
+        try {
+          ctx.body = {
+            success: true,
+            ...(await topicQueue.generateTopicPage(strapi, { topicId: ctx.params.id })),
+          };
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] Generate topic page failed: ${error.message}`);
 
           return ctx.badRequest(error.message);
         }

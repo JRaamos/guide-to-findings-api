@@ -6,6 +6,7 @@ const uid = {
 
 const LIST_LIMIT = 200;
 const FINAL_STATUSES = new Set(['processing', 'published']);
+const DEFAULT_SITE_ID = 'MLB';
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
 
@@ -43,6 +44,13 @@ const serializeTopic = (topic) => ({
   sourceTerm: topic.sourceTerm,
   sourceCategoryId: topic.sourceCategoryId,
   sourceCategoryName: topic.sourceCategoryName,
+  page: topic.page?.id ? {
+    id: topic.page.id,
+    documentId: topic.page.documentId,
+    title: topic.page.title,
+    slug: topic.page.slug,
+    status: topic.page.status,
+  } : null,
   metadata: topic.metadata,
   generatedAt: topic.generatedAt,
   approvedAt: topic.approvedAt,
@@ -85,6 +93,7 @@ const listTopics = async (strapiInstance, filters = {}) => {
   const limit = Math.min(parsePositiveInteger(filters.limit, LIST_LIMIT), LIST_LIMIT);
   const topics = await query(app, uid.editorialTopic).findMany({
     where: buildWhere(filters),
+    populate: ['page'],
     orderBy: [
       { priority: 'desc' },
       { createdAt: 'desc' },
@@ -117,6 +126,7 @@ const getTopic = async (strapiInstance, id) => {
     where: {
       id: topicId,
     },
+    populate: ['page'],
   });
 
   if (!topic) {
@@ -192,9 +202,147 @@ const rejectTopic = (strapiInstance, id) => applyStatusTransition(strapiInstance
 
 const moveTopicToPending = (strapiInstance, id) => applyStatusTransition(strapiInstance, id, 'pending');
 
+const mergeLastGenerationMetadata = (metadata, lastGeneration) => ({
+  ...(metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {}),
+  lastGeneration,
+});
+
+const extractGeneratedPageId = (pipelineResult) => {
+  return pipelineResult?.ai?.pageId ||
+    pipelineResult?.pageReuse?.pageId ||
+    pipelineResult?.pageId ||
+    null;
+};
+
+const buildPipelineOptions = (topic) => ({
+  message: topic.keyword,
+  editorialIntent: topic.intent,
+  editorialTemplate: topic.template,
+  preferredSlug: topic.metadata?.preferredSlug,
+  titleHint: topic.metadata?.titleHint,
+  displayLimit: topic.metadata?.displayLimit || topic.metadata?.productCount,
+  fetchLimit: topic.metadata?.fetchLimit,
+  siteId: topic.metadata?.siteId || process.env.MERCADO_LIVRE_SITE_ID || DEFAULT_SITE_ID,
+  autoGenerate: true,
+  autoPublish: true,
+});
+
+const summarizePipelineResult = (pipelineResult) => ({
+  success: Boolean(pipelineResult?.success),
+  term: pipelineResult?.term || null,
+  pageId: extractGeneratedPageId(pipelineResult),
+  rankingId: pipelineResult?.editorialRanking?.id || null,
+  marketplaceRankingId: pipelineResult?.marketplaceRanking?.id || null,
+  published: Boolean(pipelineResult?.publication?.published),
+  requiresReview: Boolean(pipelineResult?.publication?.requiresReview),
+  publicUrl: pipelineResult?.publication?.publicUrl || null,
+  validationErrors: pipelineResult?.publication?.validationErrors || [],
+  warnings: pipelineResult?.warnings || [],
+  pageReuse: pipelineResult?.pageReuse || null,
+});
+
+const updateTopicAfterGeneration = async (app, topic, data) => {
+  const updatedTopic = await query(app, uid.editorialTopic).update({
+    where: {
+      id: topic.id,
+    },
+    data,
+  });
+
+  return getTopic(app, updatedTopic.id);
+};
+
+const generateTopicPage = async (strapiInstance, { topicId } = {}) => {
+  const app = getStrapi(strapiInstance);
+  const topic = await getTopic(app, topicId);
+
+  if (topic.status === 'published' && topic.page?.id) {
+    return {
+      changed: false,
+      reason: 'Topic already published with Page linked',
+      topic: serializeTopic(topic),
+      generation: {
+        pageId: topic.page.id,
+        published: true,
+        requiresReview: false,
+        publicUrl: null,
+        skipped: true,
+      },
+    };
+  }
+
+  if (topic.status !== 'approved') {
+    throw new Error('Only approved EditorialTopics can generate pages');
+  }
+
+  const { runMarketplacePipeline } = require('../marketplaces/mercado-livre/marketplace-pipeline');
+  const startedAt = new Date().toISOString();
+  let processingTopic = await updateTopicAfterGeneration(app, topic, {
+    status: 'processing',
+    metadata: mergeLastGenerationMetadata(topic.metadata, {
+      status: 'processing',
+      startedAt,
+    }),
+  });
+
+  try {
+    const pipelineResult = await runMarketplacePipeline(app, buildPipelineOptions(topic));
+    const generation = summarizePipelineResult(pipelineResult);
+    const finishedAt = new Date().toISOString();
+    const nextMetadata = mergeLastGenerationMetadata(processingTopic.metadata, {
+      ...generation,
+      status: generation.published ? 'published' : generation.requiresReview ? 'requiresReview' : 'completed',
+      startedAt,
+      finishedAt,
+    });
+    const nextData = {
+      status: generation.published ? 'published' : 'approved',
+      metadata: nextMetadata,
+      publishedAt: generation.published ? finishedAt : null,
+    };
+
+    if (generation.pageId) {
+      nextData.page = generation.pageId;
+    }
+
+    const finalTopic = await updateTopicAfterGeneration(app, processingTopic, nextData);
+
+    return {
+      changed: true,
+      topic: serializeTopic(finalTopic),
+      generation,
+      pipeline: pipelineResult,
+    };
+  } catch (error) {
+    const failedAt = new Date().toISOString();
+    const failedTopic = await updateTopicAfterGeneration(app, processingTopic, {
+      status: 'approved',
+      metadata: mergeLastGenerationMetadata(processingTopic.metadata, {
+        status: 'error',
+        error: error.message,
+        startedAt,
+        finishedAt: failedAt,
+      }),
+    });
+
+    return {
+      changed: true,
+      topic: serializeTopic(failedTopic),
+      generation: {
+        pageId: null,
+        published: false,
+        requiresReview: false,
+        publicUrl: null,
+        error: error.message,
+      },
+    };
+  }
+};
+
 module.exports = {
   listTopics,
   approveTopic,
   rejectTopic,
   moveTopicToPending,
+  generateTopicPage,
 };

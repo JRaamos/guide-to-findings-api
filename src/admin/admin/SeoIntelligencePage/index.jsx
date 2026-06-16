@@ -85,8 +85,9 @@ const buildTopicsUrl = ({ status, intent, q }) => {
   return queryString ? `${TOPICS_ENDPOINT}?${queryString}` : TOPICS_ENDPOINT;
 };
 
-const TopicActions = ({ topic, onAction, isUpdating }) => {
+const TopicActions = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => {
   const isLocked = topic.status === 'processing' || topic.status === 'published';
+  const canGenerate = topic.status === 'approved';
 
   return (
     <Flex gap={2} wrap="wrap">
@@ -116,11 +117,28 @@ const TopicActions = ({ topic, onAction, isUpdating }) => {
       >
         Pending
       </Button>
+      {canGenerate ? (
+        <Button
+          type="button"
+          size="S"
+          variant="secondary"
+          loading={isGenerating}
+          disabled={isUpdating}
+          onClick={() => onGenerate(topic)}
+        >
+          Gerar Pagina
+        </Button>
+      ) : null}
+      {topic.status === 'processing' ? (
+        <Button type="button" size="S" variant="tertiary" disabled>
+          Processando
+        </Button>
+      ) : null}
     </Flex>
   );
 };
 
-const TopicRow = ({ topic, onAction, isUpdating }) => {
+const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => {
   return (
     <Box background="neutral0" borderColor="neutral150" hasRadius padding={4}>
       <Flex direction="column" alignItems="stretch" gap={4}>
@@ -167,9 +185,23 @@ const TopicRow = ({ topic, onAction, isUpdating }) => {
             </Typography>
             <Typography>{formatDate(topic.createdAt)}</Typography>
           </Box>
+          <Box minWidth="160px">
+            <Typography variant="sigma" textColor="neutral600">
+              Page
+            </Typography>
+            <Typography>
+              {topic.page?.id ? `#${topic.page.id} (${topic.page.status || 'sem status'})` : 'n/a'}
+            </Typography>
+          </Box>
         </Flex>
 
-        <TopicActions topic={topic} onAction={onAction} isUpdating={isUpdating} />
+        <TopicActions
+          topic={topic}
+          onAction={onAction}
+          onGenerate={onGenerate}
+          isUpdating={isUpdating}
+          isGenerating={isGenerating}
+        />
       </Flex>
     </Box>
   );
@@ -183,8 +215,10 @@ const SeoIntelligencePage = () => {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [updatingTopicId, setUpdatingTopicId] = useState(null);
+  const [generatingTopicId, setGeneratingTopicId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [generationResult, setGenerationResult] = useState(null);
 
   const summary = useMemo(() => {
     return topics.reduce(
@@ -199,6 +233,7 @@ const SeoIntelligencePage = () => {
   const resetFeedback = () => {
     setErrorMessage('');
     setSuccessMessage('');
+    setGenerationResult(null);
   };
 
   const loadTopics = async () => {
@@ -256,6 +291,48 @@ const SeoIntelligencePage = () => {
     }
   };
 
+  const handleGenerate = async (topic) => {
+    setGeneratingTopicId(topic.id);
+    resetFeedback();
+
+    try {
+      const response = await post(`${TOPICS_ENDPOINT}/${topic.id}/generate`);
+      const nextTopic = response.data?.topic;
+      const generation = response.data?.generation || {};
+
+      if (nextTopic) {
+        updateTopicInList(nextTopic);
+      }
+
+      setGenerationResult({
+        topicId: topic.id,
+        keyword: topic.keyword,
+        status: nextTopic?.status,
+        pageId: generation.pageId,
+        publicUrl: generation.publicUrl,
+        published: generation.published,
+        requiresReview: generation.requiresReview,
+        error: generation.error,
+        validationErrors: generation.validationErrors || [],
+        warnings: generation.warnings || [],
+      });
+
+      if (generation.error) {
+        setSuccessMessage('Geracao finalizada com erro; o topic voltou para approved.');
+      } else if (generation.published) {
+        setSuccessMessage('Pagina gerada e publicada.');
+      } else if (generation.requiresReview) {
+        setSuccessMessage('Pagina gerada e enviada para revisao.');
+      } else {
+        setSuccessMessage(response.data?.reason || 'Geracao finalizada.');
+      }
+    } catch (error) {
+      setErrorMessage(error.response?.data?.error?.message || 'Nao foi possivel gerar a pagina.');
+    } finally {
+      setGeneratingTopicId(null);
+    }
+  };
+
   const handleFilterSubmit = (event) => {
     event.preventDefault();
     loadTopics();
@@ -284,6 +361,61 @@ const SeoIntelligencePage = () => {
             <Alert closeLabel="Fechar aviso" title="Fila atualizada" variant="success">
               {successMessage}
             </Alert>
+          ) : null}
+
+          {generationResult ? (
+            <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+              <Flex direction="column" alignItems="stretch" gap={3}>
+                <Typography variant="beta">Resultado da geracao</Typography>
+                <Flex gap={5} wrap="wrap">
+                  <Box minWidth="160px">
+                    <Typography variant="sigma" textColor="neutral600">
+                      Status
+                    </Typography>
+                    <Typography>{generationResult.status || 'n/a'}</Typography>
+                  </Box>
+                  <Box minWidth="120px">
+                    <Typography variant="sigma" textColor="neutral600">
+                      Page
+                    </Typography>
+                    <Typography>{generationResult.pageId ? `#${generationResult.pageId}` : 'n/a'}</Typography>
+                  </Box>
+                  <Box minWidth="160px">
+                    <Typography variant="sigma" textColor="neutral600">
+                      Publicacao
+                    </Typography>
+                    <Typography>
+                      {generationResult.published
+                        ? 'published'
+                        : generationResult.requiresReview
+                          ? 'requiresReview'
+                          : 'notPublished'}
+                    </Typography>
+                  </Box>
+                  <Box minWidth="220px">
+                    <Typography variant="sigma" textColor="neutral600">
+                      URL
+                    </Typography>
+                    <Typography>{generationResult.publicUrl || 'n/a'}</Typography>
+                  </Box>
+                </Flex>
+                {generationResult.error ? (
+                  <Alert closeLabel="Fechar erro da geracao" title="Erro na geracao" variant="warning">
+                    {generationResult.error}
+                  </Alert>
+                ) : null}
+                {generationResult.validationErrors.length ? (
+                  <Typography variant="pi" textColor="neutral600">
+                    Validacoes: {generationResult.validationErrors.map((item) => item.message || item.code).join(', ')}
+                  </Typography>
+                ) : null}
+                {generationResult.warnings.length ? (
+                  <Typography variant="pi" textColor="neutral600">
+                    Avisos: {generationResult.warnings.map((item) => item.message || item.code).join(', ')}
+                  </Typography>
+                ) : null}
+              </Flex>
+            </Box>
           ) : null}
 
           <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
@@ -352,7 +484,9 @@ const SeoIntelligencePage = () => {
                   key={topic.id}
                   topic={topic}
                   onAction={handleAction}
+                  onGenerate={handleGenerate}
                   isUpdating={updatingTopicId === topic.id}
+                  isGenerating={generatingTopicId === topic.id}
                 />
               ))}
             </Flex>
