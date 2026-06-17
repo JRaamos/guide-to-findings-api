@@ -7,6 +7,9 @@ const {
   normalizeKeyText,
   singularizeEditorialTerm,
 } = require('../editorial-intelligence/editorial-key');
+const {
+  evaluateClusterEligibility,
+} = require('./topic-cluster-eligibility');
 
 const uid = {
   editorialTopic: 'api::editorial-topic.editorial-topic',
@@ -219,6 +222,7 @@ const serializePage = (page, editorialKey) => ({
   id: page.id,
   title: page.title,
   slug: page.slug,
+  categorySlug: page.category?.slug || null,
   editorialIntent: getPageEditorialIntent(page),
   editorialKey,
 });
@@ -262,14 +266,21 @@ const compareClusters = (first, second) => {
   return first.clusterKey.localeCompare(second.clusterKey, 'pt-BR');
 };
 
-const finalizeCluster = (cluster) => ({
-  clusterKey: cluster.clusterKey,
-  title: cluster.title,
-  totalTopics: cluster.totalTopics,
-  topicsByStatus: cluster.topicsByStatus,
-  pages: cluster.pages.sort(comparePages),
-  topics: cluster.topics.sort(compareTopics),
-});
+const finalizeCluster = async (cluster) => {
+  const finalizedCluster = {
+    clusterKey: cluster.clusterKey,
+    title: cluster.title,
+    totalTopics: cluster.totalTopics,
+    topicsByStatus: cluster.topicsByStatus,
+    pages: cluster.pages.sort(comparePages),
+    topics: cluster.topics.sort(compareTopics),
+  };
+
+  return {
+    ...finalizedCluster,
+    hubEligibility: await evaluateClusterEligibility(finalizedCluster),
+  };
+};
 
 const addTopicToClusters = (clusters, seenTopicIds, topic) => {
   if (!topic?.id || seenTopicIds.has(topic.id)) {
@@ -328,6 +339,7 @@ const findPublishedPages = (strapi) => query(strapi, uid.page).findMany({
   },
   populate: {
     ranking: true,
+    category: true,
   },
   orderBy: [
     { updatedAt: 'desc' },
@@ -370,10 +382,11 @@ const getTopicClusters = async (strapiOrOptions = {}, maybeOptions) => {
     }
   }
 
-  return Array.from(clusters.values())
+  const limitedClusters = Array.from(clusters.values())
     .sort(compareClusters)
-    .slice(0, limit)
-    .map(finalizeCluster);
+    .slice(0, limit);
+
+  return Promise.all(limitedClusters.map(finalizeCluster));
 };
 
 module.exports = {

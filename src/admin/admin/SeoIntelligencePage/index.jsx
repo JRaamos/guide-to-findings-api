@@ -101,6 +101,16 @@ const buildClustersUrl = ({ limit = DEFAULT_CLUSTER_LIMIT } = {}) => {
 
 const getCount = (value) => Number(value) || 0;
 
+const buildSuggestedHubUrl = (suggestedHub) => {
+  if (!suggestedHub?.slug) {
+    return 'n/a';
+  }
+
+  return suggestedHub.categorySlug
+    ? `/${suggestedHub.categorySlug}/${suggestedHub.slug}`
+    : `/${suggestedHub.slug}`;
+};
+
 const TopicActions = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => {
   const isLocked = topic.status === 'processing' || topic.status === 'published';
   const canGenerate = topic.status === 'approved';
@@ -227,6 +237,10 @@ const ClusterCard = ({ cluster }) => {
   const pendingCount = getCount(cluster.topicsByStatus?.pending);
   const approvedCount = getCount(cluster.topicsByStatus?.approved);
   const publishedTopicCount = getCount(cluster.topicsByStatus?.published);
+  const hubEligibility = cluster.hubEligibility || {};
+  const suggestedHub = hubEligibility.suggestedHub || {};
+  const reasons = Array.isArray(hubEligibility.reasons) ? hubEligibility.reasons : [];
+  const missingReasons = Array.isArray(hubEligibility.missingReasons) ? hubEligibility.missingReasons : [];
   const topPages = Array.isArray(cluster.pages) ? cluster.pages.slice(0, 4) : [];
   const topTopics = Array.isArray(cluster.topics) ? cluster.topics.slice(0, 6) : [];
 
@@ -240,7 +254,12 @@ const ClusterCard = ({ cluster }) => {
               {cluster.clusterKey}
             </Typography>
           </Flex>
-          <Badge active>{getCount(cluster.pages?.length)} pages publicadas</Badge>
+          <Flex gap={2} wrap="wrap">
+            <Badge active={Boolean(hubEligibility.eligible)}>
+              {hubEligibility.eligible ? 'Elegivel para Hub' : 'Ainda nao elegivel'}
+            </Badge>
+            <Badge active>{getCount(cluster.pages?.length)} pages publicadas</Badge>
+          </Flex>
         </Flex>
 
         <Flex gap={3} wrap="wrap">
@@ -248,7 +267,57 @@ const ClusterCard = ({ cluster }) => {
           <Badge>Pending {pendingCount}</Badge>
           <Badge active={Boolean(approvedCount)}>Approved {approvedCount}</Badge>
           <Badge active={Boolean(publishedTopicCount)}>Published topics {publishedTopicCount}</Badge>
+          <Badge active={hubEligibility.score >= 80}>Score {getCount(hubEligibility.score)}</Badge>
         </Flex>
+
+        <Box background="neutral100" borderColor="neutral150" hasRadius padding={4}>
+          <Flex direction="column" alignItems="stretch" gap={3}>
+            <Flex gap={6} wrap="wrap">
+              <Box minWidth="180px">
+                <Typography variant="sigma" textColor="neutral600">
+                  Hub sugerida
+                </Typography>
+                <Typography fontWeight="bold">{suggestedHub.title || 'n/a'}</Typography>
+              </Box>
+              <Box minWidth="260px">
+                <Typography variant="sigma" textColor="neutral600">
+                  URL sugerida
+                </Typography>
+                <Typography>{buildSuggestedHubUrl(suggestedHub)}</Typography>
+              </Box>
+            </Flex>
+
+            {reasons.length ? (
+              <Box>
+                <Typography variant="sigma" textColor="neutral600">
+                  Motivos
+                </Typography>
+                <Flex direction="column" alignItems="stretch" gap={1} paddingTop={1}>
+                  {reasons.map((reason) => (
+                    <Typography key={reason} variant="pi">
+                      OK - {reason}
+                    </Typography>
+                  ))}
+                </Flex>
+              </Box>
+            ) : null}
+
+            {!hubEligibility.eligible && missingReasons.length ? (
+              <Box>
+                <Typography variant="sigma" textColor="neutral600">
+                  Faltam
+                </Typography>
+                <Flex direction="column" alignItems="stretch" gap={1} paddingTop={1}>
+                  {missingReasons.map((reason) => (
+                    <Typography key={reason} variant="pi">
+                      - {reason}
+                    </Typography>
+                  ))}
+                </Flex>
+              </Box>
+            ) : null}
+          </Flex>
+        </Box>
 
         <Flex alignItems="flex-start" gap={6} wrap="wrap">
           <Box minWidth="260px" flex="1 1 320px">
