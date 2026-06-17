@@ -17,6 +17,7 @@
     "inspect:command-context": "node scripts/inspect-command-context.js",
     "discover:keywords": "node scripts/discover-keywords.js",
     "import:keywords": "node scripts/import-keywords.js",
+    "inspect:topic-clusters": "node scripts/inspect-topic-clusters.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",
     "sync:ml:publish": "node scripts/sync-generate-publish-mercadolivre-ranking.js",
     "cleanup:production": "node scripts/production-cleanup.js",
