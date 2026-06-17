@@ -15,6 +15,8 @@ import {
 import { useFetchClient } from '@strapi/strapi/admin';
 
 const TOPICS_ENDPOINT = '/seo-intelligence/topics';
+const CLUSTERS_ENDPOINT = '/seo-intelligence/clusters';
+const DEFAULT_CLUSTER_LIMIT = 50;
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -84,6 +86,20 @@ const buildTopicsUrl = ({ status, intent, q }) => {
 
   return queryString ? `${TOPICS_ENDPOINT}?${queryString}` : TOPICS_ENDPOINT;
 };
+
+const buildClustersUrl = ({ limit = DEFAULT_CLUSTER_LIMIT } = {}) => {
+  const searchParams = new URLSearchParams();
+
+  if (limit) {
+    searchParams.set('limit', limit);
+  }
+
+  const queryString = searchParams.toString();
+
+  return queryString ? `${CLUSTERS_ENDPOINT}?${queryString}` : CLUSTERS_ENDPOINT;
+};
+
+const getCount = (value) => Number(value) || 0;
 
 const TopicActions = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => {
   const isLocked = topic.status === 'processing' || topic.status === 'published';
@@ -207,13 +223,90 @@ const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => 
   );
 };
 
+const ClusterCard = ({ cluster }) => {
+  const pendingCount = getCount(cluster.topicsByStatus?.pending);
+  const approvedCount = getCount(cluster.topicsByStatus?.approved);
+  const publishedTopicCount = getCount(cluster.topicsByStatus?.published);
+  const topPages = Array.isArray(cluster.pages) ? cluster.pages.slice(0, 4) : [];
+  const topTopics = Array.isArray(cluster.topics) ? cluster.topics.slice(0, 6) : [];
+
+  return (
+    <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+      <Flex direction="column" alignItems="stretch" gap={4}>
+        <Flex justifyContent="space-between" alignItems="flex-start" gap={4} wrap="wrap">
+          <Flex direction="column" alignItems="flex-start" gap={1}>
+            <Typography variant="beta">{cluster.title || cluster.clusterKey}</Typography>
+            <Typography variant="pi" textColor="neutral600">
+              {cluster.clusterKey}
+            </Typography>
+          </Flex>
+          <Badge active>{getCount(cluster.pages?.length)} pages publicadas</Badge>
+        </Flex>
+
+        <Flex gap={3} wrap="wrap">
+          <Badge>{getCount(cluster.totalTopics)} topics</Badge>
+          <Badge>Pending {pendingCount}</Badge>
+          <Badge active={Boolean(approvedCount)}>Approved {approvedCount}</Badge>
+          <Badge active={Boolean(publishedTopicCount)}>Published topics {publishedTopicCount}</Badge>
+        </Flex>
+
+        <Flex alignItems="flex-start" gap={6} wrap="wrap">
+          <Box minWidth="260px" flex="1 1 320px">
+            <Typography variant="sigma" textColor="neutral600">
+              Top pages
+            </Typography>
+            {topPages.length ? (
+              <Flex direction="column" alignItems="stretch" gap={2} paddingTop={2}>
+                {topPages.map((page) => (
+                  <Box key={page.pageId || page.id}>
+                    <Typography fontWeight="bold">{page.title}</Typography>
+                    <Typography variant="pi" textColor="neutral600">
+                      {page.slug} | {INTENT_LABELS[page.editorialIntent] || page.editorialIntent || 'n/a'}
+                    </Typography>
+                  </Box>
+                ))}
+              </Flex>
+            ) : (
+              <Typography textColor="neutral600">Nenhuma page publicada neste cluster.</Typography>
+            )}
+          </Box>
+
+          <Box minWidth="260px" flex="1 1 320px">
+            <Typography variant="sigma" textColor="neutral600">
+              Top topics
+            </Typography>
+            {topTopics.length ? (
+              <Flex direction="column" alignItems="stretch" gap={2} paddingTop={2}>
+                {topTopics.map((topic) => (
+                  <Box key={topic.topicId || topic.id}>
+                    <Typography fontWeight="bold">{topic.keyword}</Typography>
+                    <Typography variant="pi" textColor="neutral600">
+                      {STATUS_LABELS[topic.status] || topic.status} |{' '}
+                      {INTENT_LABELS[topic.intent] || topic.intent || 'n/a'} | priority {topic.priority}
+                    </Typography>
+                  </Box>
+                ))}
+              </Flex>
+            ) : (
+              <Typography textColor="neutral600">Nenhum topic neste cluster.</Typography>
+            )}
+          </Box>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+};
+
 const SeoIntelligencePage = () => {
   const { get, post } = useFetchClient();
+  const [activeSection, setActiveSection] = useState('topics');
   const [topics, setTopics] = useState([]);
+  const [clusters, setClusters] = useState([]);
   const [status, setStatus] = useState('pending');
   const [intent, setIntent] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isClustersLoading, setIsClustersLoading] = useState(false);
   const [updatingTopicId, setUpdatingTopicId] = useState(null);
   const [generatingTopicId, setGeneratingTopicId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -251,9 +344,30 @@ const SeoIntelligencePage = () => {
     }
   };
 
+  const loadClusters = async () => {
+    setIsClustersLoading(true);
+    resetFeedback();
+
+    try {
+      const response = await get(buildClustersUrl());
+
+      setClusters(Array.isArray(response.data?.clusters) ? response.data.clusters : []);
+    } catch (error) {
+      setErrorMessage('Nao foi possivel carregar os clusters.');
+    } finally {
+      setIsClustersLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadTopics();
   }, []);
+
+  useEffect(() => {
+    if (activeSection === 'clusters' && !clusters.length) {
+      loadClusters();
+    }
+  }, [activeSection]);
 
   const updateTopicInList = (nextTopic) => {
     setTopics((currentTopics) => {
@@ -351,6 +465,23 @@ const SeoIntelligencePage = () => {
             </Typography>
           </Flex>
 
+          <Flex gap={2} wrap="wrap">
+            <Button
+              type="button"
+              variant={activeSection === 'topics' ? undefined : 'secondary'}
+              onClick={() => setActiveSection('topics')}
+            >
+              Topics
+            </Button>
+            <Button
+              type="button"
+              variant={activeSection === 'clusters' ? undefined : 'secondary'}
+              onClick={() => setActiveSection('clusters')}
+            >
+              Clusters
+            </Button>
+          </Flex>
+
           {errorMessage ? (
             <Alert closeLabel="Fechar erro" title="Erro" variant="danger">
               {errorMessage}
@@ -418,79 +549,121 @@ const SeoIntelligencePage = () => {
             </Box>
           ) : null}
 
-          <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
-            <form onSubmit={handleFilterSubmit}>
-              <Flex alignItems="flex-end" gap={4} wrap="wrap">
-                <Box flex="1 1 260px">
-                  <TextInput
-                    label="Buscar keyword"
-                    name="keyword-search"
-                    value={search}
-                    placeholder="notebook custo-beneficio"
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
+          {activeSection === 'topics' ? (
+            <>
+              <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+                <form onSubmit={handleFilterSubmit}>
+                  <Flex alignItems="flex-end" gap={4} wrap="wrap">
+                    <Box flex="1 1 260px">
+                      <TextInput
+                        label="Buscar keyword"
+                        name="keyword-search"
+                        value={search}
+                        placeholder="notebook custo-beneficio"
+                        onChange={(event) => setSearch(event.target.value)}
+                      />
+                    </Box>
+                    <Box minWidth="180px">
+                      <SingleSelect label="Status" value={status} onChange={setStatus}>
+                        {STATUS_OPTIONS.map((option) => (
+                          <SingleSelectOption key={option.value || 'all'} value={option.value}>
+                            {option.label}
+                          </SingleSelectOption>
+                        ))}
+                      </SingleSelect>
+                    </Box>
+                    <Box minWidth="210px">
+                      <SingleSelect label="Intent" value={intent} onChange={setIntent}>
+                        {INTENT_OPTIONS.map((option) => (
+                          <SingleSelectOption key={option.value || 'all'} value={option.value}>
+                            {option.label}
+                          </SingleSelectOption>
+                        ))}
+                      </SingleSelect>
+                    </Box>
+                    <Button type="submit" loading={isLoading}>
+                      Filtrar
+                    </Button>
+                    <Button type="button" variant="tertiary" disabled={isLoading} onClick={loadTopics}>
+                      Atualizar
+                    </Button>
+                  </Flex>
+                </form>
+              </Box>
+
+              <Flex gap={3} wrap="wrap">
+                <Badge active>Mostrando {topics.length}</Badge>
+                <Badge>Pending {summary.pending || 0}</Badge>
+                <Badge active={Boolean(summary.approved)}>Approved {summary.approved || 0}</Badge>
+                <Badge>Rejected {summary.rejected || 0}</Badge>
+              </Flex>
+
+              {isLoading ? (
+                <Flex justifyContent="center" padding={8}>
+                  <Loader>Carregando topicos</Loader>
+                </Flex>
+              ) : null}
+
+              {!isLoading && !topics.length ? (
+                <Box background="neutral0" borderColor="neutral150" hasRadius padding={6}>
+                  <Typography>Nenhum topic encontrado para os filtros atuais.</Typography>
                 </Box>
-                <Box minWidth="180px">
-                  <SingleSelect label="Status" value={status} onChange={setStatus}>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SingleSelectOption key={option.value || 'all'} value={option.value}>
-                        {option.label}
-                      </SingleSelectOption>
-                    ))}
-                  </SingleSelect>
-                </Box>
-                <Box minWidth="210px">
-                  <SingleSelect label="Intent" value={intent} onChange={setIntent}>
-                    {INTENT_OPTIONS.map((option) => (
-                      <SingleSelectOption key={option.value || 'all'} value={option.value}>
-                        {option.label}
-                      </SingleSelectOption>
-                    ))}
-                  </SingleSelect>
-                </Box>
-                <Button type="submit" loading={isLoading}>
-                  Filtrar
-                </Button>
-                <Button type="button" variant="tertiary" disabled={isLoading} onClick={loadTopics}>
-                  Atualizar
+              ) : null}
+
+              {!isLoading ? (
+                <Flex direction="column" alignItems="stretch" gap={3}>
+                  {topics.map((topic) => (
+                    <TopicRow
+                      key={topic.id}
+                      topic={topic}
+                      onAction={handleAction}
+                      onGenerate={handleGenerate}
+                      isUpdating={updatingTopicId === topic.id}
+                      isGenerating={generatingTopicId === topic.id}
+                    />
+                  ))}
+                </Flex>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+                <Flex direction="column" alignItems="flex-start" gap={1}>
+                  <Typography variant="beta">Clusters editoriais</Typography>
+                  <Typography textColor="neutral600">
+                    Agrupamento read-only de topics e pages publicadas por termo base.
+                  </Typography>
+                </Flex>
+                <Button type="button" variant="tertiary" loading={isClustersLoading} onClick={loadClusters}>
+                  Atualizar clusters
                 </Button>
               </Flex>
-            </form>
-          </Box>
 
-          <Flex gap={3} wrap="wrap">
-            <Badge active>Mostrando {topics.length}</Badge>
-            <Badge>Pending {summary.pending || 0}</Badge>
-            <Badge active={Boolean(summary.approved)}>Approved {summary.approved || 0}</Badge>
-            <Badge>Rejected {summary.rejected || 0}</Badge>
-          </Flex>
+              <Flex gap={3} wrap="wrap">
+                <Badge active>Mostrando {clusters.length}</Badge>
+              </Flex>
 
-          {isLoading ? (
-            <Flex justifyContent="center" padding={8}>
-              <Loader>Carregando topicos</Loader>
-            </Flex>
-          ) : null}
+              {isClustersLoading ? (
+                <Flex justifyContent="center" padding={8}>
+                  <Loader>Carregando clusters</Loader>
+                </Flex>
+              ) : null}
 
-          {!isLoading && !topics.length ? (
-            <Box background="neutral0" borderColor="neutral150" hasRadius padding={6}>
-              <Typography>Nenhum topic encontrado para os filtros atuais.</Typography>
-            </Box>
-          ) : null}
+              {!isClustersLoading && !clusters.length ? (
+                <Box background="neutral0" borderColor="neutral150" hasRadius padding={6}>
+                  <Typography>Nenhum cluster encontrado.</Typography>
+                </Box>
+              ) : null}
 
-          {!isLoading ? (
-            <Flex direction="column" alignItems="stretch" gap={3}>
-              {topics.map((topic) => (
-                <TopicRow
-                  key={topic.id}
-                  topic={topic}
-                  onAction={handleAction}
-                  onGenerate={handleGenerate}
-                  isUpdating={updatingTopicId === topic.id}
-                  isGenerating={generatingTopicId === topic.id}
-                />
-              ))}
-            </Flex>
-          ) : null}
+              {!isClustersLoading ? (
+                <Flex direction="column" alignItems="stretch" gap={3}>
+                  {clusters.map((cluster) => (
+                    <ClusterCard key={cluster.clusterKey} cluster={cluster} />
+                  ))}
+                </Flex>
+              ) : null}
+            </>
+          )}
         </Flex>
       </Box>
     </Main>

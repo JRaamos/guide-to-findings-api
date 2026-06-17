@@ -1,6 +1,7 @@
 'use strict';
 
 const topicQueue = require('../../services/seo-intelligence/topic-queue');
+const topicClusters = require('../../services/seo-intelligence/topic-clusters');
 
 module.exports = () => ({
   routes: {
@@ -11,6 +12,14 @@ module.exports = () => ({
           method: 'GET',
           path: '/topics',
           handler: 'topics.find',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
+        {
+          method: 'GET',
+          path: '/clusters',
+          handler: 'clusters.find',
           config: {
             policies: ['admin::isAuthenticatedAdmin'],
           },
@@ -51,6 +60,27 @@ module.exports = () => ({
     },
   },
   controllers: {
+    clusters: {
+      async find(ctx) {
+        try {
+          const clusters = await topicClusters.getTopicClusters(strapi, {
+            limit: ctx.query?.limit,
+            includePages: true,
+          });
+
+          ctx.body = {
+            success: true,
+            clusters,
+            count: clusters.length,
+          };
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] List clusters failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
+    },
+
     topics: {
       async find(ctx) {
         try {
