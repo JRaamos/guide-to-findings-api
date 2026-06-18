@@ -17,6 +17,8 @@
     "inspect:command-context": "node scripts/inspect-command-context.js",
     "discover:keywords": "node scripts/discover-keywords.js",
     "import:keywords": "node scripts/import-keywords.js",
+    "import:trend-topics": "node scripts/import-trend-topics.js",
+    "refresh:topic-scores": "node scripts/refresh-topic-scores.js",
     "inspect:topic-clusters": "node scripts/inspect-topic-clusters.js",
     "discover:trends": "node scripts/discover-trends.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",

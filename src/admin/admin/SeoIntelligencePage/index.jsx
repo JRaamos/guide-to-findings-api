@@ -67,6 +67,35 @@ const getStatusBadgeActive = (status) => {
   return status === 'approved' || status === 'published';
 };
 
+const getScoreColors = (score) => {
+  if (score >= 90) {
+    return { background: 'success100', textColor: 'success700' };
+  }
+
+  if (score >= 70) {
+    return { background: 'primary100', textColor: 'primary700' };
+  }
+
+  if (score >= 50) {
+    return { background: 'warning100', textColor: 'warning700' };
+  }
+
+  return { background: 'neutral150', textColor: 'neutral700' };
+};
+
+const TopicScoreBadge = ({ score }) => {
+  const normalizedScore = Number(score) || 0;
+  const colors = getScoreColors(normalizedScore);
+
+  return (
+    <Box background={colors.background} hasRadius paddingLeft={3} paddingRight={3} paddingTop={1} paddingBottom={1}>
+      <Typography fontWeight="bold" textColor={colors.textColor}>
+        Score {normalizedScore}
+      </Typography>
+    </Box>
+  );
+};
+
 const buildTopicsUrl = ({ status, intent, q }) => {
   const searchParams = new URLSearchParams();
 
@@ -175,9 +204,12 @@ const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => 
               {topic.normalizedKeyword}
             </Typography>
           </Flex>
-          <Badge active={getStatusBadgeActive(topic.status)}>
-            {STATUS_LABELS[topic.status] || topic.status}
-          </Badge>
+          <Flex gap={2} wrap="wrap">
+            <TopicScoreBadge score={topic.topicScore} />
+            <Badge active={getStatusBadgeActive(topic.status)}>
+              {STATUS_LABELS[topic.status] || topic.status}
+            </Badge>
+          </Flex>
         </Flex>
 
         <Flex gap={5} wrap="wrap">

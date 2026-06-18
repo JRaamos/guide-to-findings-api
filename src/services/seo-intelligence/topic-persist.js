@@ -1,5 +1,6 @@
 'use strict';
 
+const { isDeepStrictEqual } = require('node:util');
 const {
   normalizeKeyword,
 } = require('./keyword-discovery');
@@ -43,7 +44,7 @@ const normalizeMetadata = (metadata) => {
 };
 
 const metadataChanged = (nextMetadata, existingMetadata) => {
-  return JSON.stringify(nextMetadata || {}) !== JSON.stringify(existingMetadata || {});
+  return !isDeepStrictEqual(nextMetadata || {}, existingMetadata || {});
 };
 
 const mergeAdditionalMetadata = (existingMetadata, incomingMetadata) => {

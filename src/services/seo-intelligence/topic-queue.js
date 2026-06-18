@@ -5,6 +5,7 @@ const uid = {
 };
 
 const LIST_LIMIT = 200;
+const CANDIDATE_LIMIT = 10000;
 const FINAL_STATUSES = new Set(['processing', 'published']);
 const DEFAULT_SITE_ID = 'MLB';
 
@@ -52,6 +53,8 @@ const serializeTopic = (topic) => ({
     status: topic.page.status,
   } : null,
   metadata: topic.metadata,
+  topicScore: Number(topic.metadata?.topicScore) || 0,
+  topicScoreBreakdown: topic.metadata?.topicScoreBreakdown || null,
   generatedAt: topic.generatedAt,
   approvedAt: topic.approvedAt,
   publishedAt: topic.publishedAt,
@@ -98,9 +101,21 @@ const listTopics = async (strapiInstance, filters = {}) => {
       { priority: 'desc' },
       { createdAt: 'desc' },
     ],
-    limit: LIST_LIMIT,
+    limit: CANDIDATE_LIMIT,
   });
-  const filteredTopics = topics.filter((topic) => matchesSearch(topic, filters.q)).slice(0, limit);
+  const filteredTopics = topics
+    .filter((topic) => matchesSearch(topic, filters.q))
+    .sort((left, right) => {
+      const scoreDifference = (Number(right.metadata?.topicScore) || 0) -
+        (Number(left.metadata?.topicScore) || 0);
+
+      if (scoreDifference !== 0) {
+        return scoreDifference;
+      }
+
+      return (Number(right.priority) || 0) - (Number(left.priority) || 0);
+    })
+    .slice(0, limit);
 
   return {
     topics: filteredTopics.map(serializeTopic),

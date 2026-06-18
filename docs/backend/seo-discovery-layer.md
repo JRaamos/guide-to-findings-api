@@ -84,8 +84,55 @@ com SLA e podem responder com rate limit. O adaptador usa sessao, timeout e
 tentativas curtas, mas uma integracao de producao deve prever cache, controle de
 frequencia e, se necessario, um provedor oficial ou contratado.
 
-O host padrao acompanha o mercado brasileiro. Ele pode ser substituido com
-`GOOGLE_TRENDS_BASE_URL` sem alterar o service.
+O adaptador tenta hosts regionais do Trends quando um deles aplica rate limit.
+Isso nao muda o mercado analisado, definido por `geo=BR`. Um host pode ser
+fixado com `GOOGLE_TRENDS_BASE_URL` sem alterar o service.
 
 Esta fase nao cria `EditorialTopic`, nao acessa o banco, nao chama IA e nao
 executa pipeline de geracao ou publicacao.
+
+## Trend Topic Import
+
+A importacao controlada transforma sinais brutos do Trends em topics
+contextualizados antes de gravar a fila editorial:
+
+```txt
+Google Trends
+    ->
+Search Demand Engine
+    ->
+Trend Topic Expansion
+    ->
+EditorialTopic pending
+```
+
+Queries que ja contem o termo-base sao mantidas. Marcas e modelos curtos sao
+combinados com o contexto original. Por exemplo:
+
+```txt
+notebook + dell
+    -> notebooks dell
+    -> melhores notebooks dell
+
+notebook + notebook gamer
+    -> notebook gamer
+    -> melhores notebooks gamer
+```
+
+Sinais de preco sao classificados como `costBenefit`, casos de uso como
+`useCase` e comparacoes como `comparison`. Frases sem contexto suficiente sao
+descartadas e reportadas como warnings, sem criar topics soltos.
+
+Uso:
+
+```bash
+yarn import:trend-topics notebook
+yarn import:trend-topics "air fryer" --max 20
+```
+
+Todos os novos registros entram com status `pending`. A persistencia reutiliza
+a chave unica `normalizedKeyword`, portanto repetir o comando nao cria
+duplicatas nem sobrescreve o status editorial de topics existentes.
+
+Esta etapa apenas alimenta a fila. Ela nao gera Page, nao chama IA, nao executa
+o Marketplace Pipeline e nao publica conteudo.

@@ -1,6 +1,12 @@
 'use strict';
 
-const DEFAULT_BASE_URL = 'https://trends.google.com.br';
+const DEFAULT_BASE_URLS = [
+  'https://trends.google.com.br',
+  'https://trends.google.es',
+  'https://trends.google.co.uk',
+  'https://trends.google.com.ar',
+  'https://trends.google.com',
+];
 const DEFAULT_GEO = 'BR';
 const DEFAULT_LOCALE = 'pt-BR';
 const DEFAULT_TIMEFRAME = 'today 12-m';
@@ -158,35 +164,29 @@ const mapRankedKeywords = (rankedList = []) => {
   });
 };
 
-const discoverGoogleTrends = async ({
+const discoverFromBaseUrl = async ({
   term,
-  geo = DEFAULT_GEO,
-  locale = DEFAULT_LOCALE,
-  timeframe = DEFAULT_TIMEFRAME,
-  timezone = DEFAULT_TIMEZONE,
-  baseUrl = process.env.GOOGLE_TRENDS_BASE_URL || DEFAULT_BASE_URL,
-} = {}) => {
-  const normalizedTerm = term?.toString().replace(/\s+/g, ' ').trim();
-
-  if (!normalizedTerm) {
-    throw new GoogleTrendsError('A term is required for Google Trends discovery');
-  }
-
+  geo,
+  locale,
+  timeframe,
+  timezone,
+  baseUrl,
+}) => {
   const session = await createSession({
     baseUrl,
-    term: normalizedTerm,
+    term,
     geo,
     locale,
     timeframe,
   });
   const exploreData = await requestJson(
-    buildExploreUrl({ baseUrl, term: normalizedTerm, geo, locale, timeframe, timezone }),
+    buildExploreUrl({ baseUrl, term, geo, locale, timeframe, timezone }),
     session
   );
   const relatedQueriesWidget = exploreData.widgets?.find((widget) => widget.id === 'RELATED_QUERIES');
 
   if (!relatedQueriesWidget?.request || !relatedQueriesWidget?.token) {
-    throw new GoogleTrendsError(`Google Trends returned no related queries widget for "${normalizedTerm}"`);
+    throw new GoogleTrendsError(`Google Trends returned no related queries widget for "${term}"`);
   }
 
   const relatedData = await requestJson(
@@ -195,12 +195,47 @@ const discoverGoogleTrends = async ({
   );
 
   return {
-    term: normalizedTerm,
+    term,
     source: 'google_trends',
     geo,
     timeframe,
     signals: mapRankedKeywords(relatedData.default?.rankedList),
   };
+};
+
+const discoverGoogleTrends = async ({
+  term,
+  geo = DEFAULT_GEO,
+  locale = DEFAULT_LOCALE,
+  timeframe = DEFAULT_TIMEFRAME,
+  timezone = DEFAULT_TIMEZONE,
+  baseUrl = process.env.GOOGLE_TRENDS_BASE_URL || null,
+} = {}) => {
+  const normalizedTerm = term?.toString().replace(/\s+/g, ' ').trim();
+
+  if (!normalizedTerm) {
+    throw new GoogleTrendsError('A term is required for Google Trends discovery');
+  }
+
+  const baseUrls = baseUrl ? [baseUrl] : DEFAULT_BASE_URLS;
+  let lastError;
+
+  for (const candidateBaseUrl of baseUrls) {
+    try {
+      return await discoverFromBaseUrl({
+        term: normalizedTerm,
+        geo,
+        locale,
+        timeframe,
+        timezone,
+        baseUrl: candidateBaseUrl,
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
 };
 
 module.exports = {
