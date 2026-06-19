@@ -26,6 +26,14 @@ module.exports = () => ({
         },
         {
           method: 'POST',
+          path: '/topics/bulk-generate',
+          handler: 'topics.bulkGenerate',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
+        {
+          method: 'POST',
           path: '/topics/:id/approve',
           handler: 'topics.approve',
           config: {
@@ -142,6 +150,21 @@ module.exports = () => ({
           };
         } catch (error) {
           strapi.log.warn(`[SEO Intelligence] Generate topic page failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
+
+      async bulkGenerate(ctx) {
+        try {
+          ctx.body = {
+            success: true,
+            ...(await topicQueue.bulkGenerateApprovedTopics(strapi, {
+              limit: ctx.request.body?.limit,
+            })),
+          };
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] Bulk generate topics failed: ${error.message}`);
 
           return ctx.badRequest(error.message);
         }

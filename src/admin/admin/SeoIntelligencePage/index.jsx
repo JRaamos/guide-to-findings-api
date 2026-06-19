@@ -410,9 +410,11 @@ const SeoIntelligencePage = () => {
   const [isClustersLoading, setIsClustersLoading] = useState(false);
   const [updatingTopicId, setUpdatingTopicId] = useState(null);
   const [generatingTopicId, setGeneratingTopicId] = useState(null);
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [generationResult, setGenerationResult] = useState(null);
+  const [bulkGenerationResult, setBulkGenerationResult] = useState(null);
 
   const summary = useMemo(() => {
     return topics.reduce(
@@ -428,6 +430,7 @@ const SeoIntelligencePage = () => {
     setErrorMessage('');
     setSuccessMessage('');
     setGenerationResult(null);
+    setBulkGenerationResult(null);
   };
 
   const loadTopics = async () => {
@@ -548,6 +551,33 @@ const SeoIntelligencePage = () => {
     }
   };
 
+  const handleBulkGenerate = async () => {
+    setIsBulkGenerating(true);
+    resetFeedback();
+
+    try {
+      const response = await post(`${TOPICS_ENDPOINT}/bulk-generate`, { limit: 5 });
+      const result = response.data || {};
+
+      setBulkGenerationResult({
+        attempted: result.attempted || 0,
+        generated: result.generated || 0,
+        reused: result.reused || 0,
+        failed: result.failed || 0,
+        results: Array.isArray(result.results) ? result.results : [],
+      });
+      setSuccessMessage(
+        result.attempted
+          ? 'Geracao em lote finalizada.'
+          : 'Nenhum topic approved disponivel para gerar.'
+      );
+    } catch (error) {
+      setErrorMessage(error.response?.data?.error?.message || 'Nao foi possivel executar a geracao em lote.');
+    } finally {
+      setIsBulkGenerating(false);
+    }
+  };
+
   const handleFilterSubmit = (event) => {
     event.preventDefault();
     loadTopics();
@@ -650,8 +680,48 @@ const SeoIntelligencePage = () => {
             </Box>
           ) : null}
 
+          {bulkGenerationResult ? (
+            <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+              <Flex direction="column" alignItems="stretch" gap={3}>
+                <Typography variant="beta">Resultado da geracao em lote</Typography>
+                <Flex gap={3} wrap="wrap">
+                  <Badge active>Tentados {bulkGenerationResult.attempted}</Badge>
+                  <Badge active={Boolean(bulkGenerationResult.generated)}>
+                    Gerados {bulkGenerationResult.generated}
+                  </Badge>
+                  <Badge active={Boolean(bulkGenerationResult.reused)}>
+                    Reutilizados {bulkGenerationResult.reused}
+                  </Badge>
+                  <Badge active={Boolean(bulkGenerationResult.failed)}>
+                    Falharam {bulkGenerationResult.failed}
+                  </Badge>
+                </Flex>
+                {bulkGenerationResult.results.map((result) => (
+                  <Typography key={result.topicId} variant="pi" textColor="neutral600">
+                    #{result.topicId} | score {result.score} | {result.action} | {result.keyword}
+                    {result.error ? ` | ${result.error}` : ''}
+                  </Typography>
+                ))}
+              </Flex>
+            </Box>
+          ) : null}
+
           {activeSection === 'topics' ? (
             <>
+              <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+                <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+                  <Flex direction="column" alignItems="flex-start" gap={1}>
+                    <Typography variant="beta">Geracao controlada</Typography>
+                    <Typography textColor="neutral600">
+                      Somente topics aprovados serao gerados. Ordenacao por score.
+                    </Typography>
+                  </Flex>
+                  <Button type="button" loading={isBulkGenerating} onClick={handleBulkGenerate}>
+                    Gerar Top 5 Aprovados
+                  </Button>
+                </Flex>
+              </Box>
+
               <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
                 <form onSubmit={handleFilterSubmit}>
                   <Flex alignItems="flex-end" gap={4} wrap="wrap">

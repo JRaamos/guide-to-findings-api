@@ -6,6 +6,8 @@ const uid = {
 
 const LIST_LIMIT = 200;
 const CANDIDATE_LIMIT = 10000;
+const DEFAULT_BULK_LIMIT = 5;
+const MAX_BULK_LIMIT = 10;
 const FINAL_STATUSES = new Set(['processing', 'published']);
 const DEFAULT_SITE_ID = 'MLB';
 
@@ -354,10 +356,137 @@ const generateTopicPage = async (strapiInstance, { topicId } = {}) => {
   }
 };
 
+const normalizeBulkLimit = (value) => {
+  return Math.min(parsePositiveInteger(value, DEFAULT_BULK_LIMIT), MAX_BULK_LIMIT);
+};
+
+const compareApprovedTopics = (first, second) => {
+  const scoreDifference = (Number(second.metadata?.topicScore) || 0) -
+    (Number(first.metadata?.topicScore) || 0);
+
+  if (scoreDifference !== 0) {
+    return scoreDifference;
+  }
+
+  const priorityDifference = (Number(second.priority) || 0) - (Number(first.priority) || 0);
+
+  if (priorityDifference !== 0) {
+    return priorityDifference;
+  }
+
+  return new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
+};
+
+const recoverProcessingTopic = async (app, topicId, errorMessage) => {
+  const topic = await query(app, uid.editorialTopic).findOne({
+    where: {
+      id: topicId,
+    },
+  });
+
+  if (topic?.status !== 'processing') {
+    return topic;
+  }
+
+  return query(app, uid.editorialTopic).update({
+    where: {
+      id: topic.id,
+    },
+    data: {
+      status: 'approved',
+      metadata: mergeLastGenerationMetadata(topic.metadata, {
+        status: 'error',
+        error: errorMessage || 'Bulk generation did not complete',
+        finishedAt: new Date().toISOString(),
+      }),
+    },
+  });
+};
+
+const buildBulkItemResult = ({ topic, generationResult, error }) => {
+  const generation = generationResult?.generation || {};
+  const pageReuse = generationResult?.pipeline?.pageReuse || {};
+  const reused = Boolean(pageReuse.found);
+  const failed = Boolean(error || generation.error || !generation.pageId);
+
+  return {
+    topicId: topic.id,
+    keyword: topic.keyword,
+    score: Number(topic.metadata?.topicScore) || 0,
+    status: generationResult?.topic?.status || (failed ? 'approved' : topic.status),
+    action: failed ? 'failed' : reused ? 'reused' : 'generated',
+    pageId: generation.pageId || null,
+    publicUrl: generation.publicUrl || null,
+    error: error?.message || generation.error || (failed ? 'Generation finished without a Page' : null),
+  };
+};
+
+const resolveBulkArgs = (strapiOrOptions, maybeOptions) => {
+  if (strapiOrOptions?.db) {
+    return {
+      app: getStrapi(strapiOrOptions),
+      options: maybeOptions || {},
+    };
+  }
+
+  return {
+    app: getStrapi(),
+    options: strapiOrOptions || {},
+  };
+};
+
+const bulkGenerateApprovedTopics = async (strapiOrOptions = {}, maybeOptions) => {
+  const { app, options } = resolveBulkArgs(strapiOrOptions, maybeOptions);
+  const limit = normalizeBulkLimit(options.limit);
+  const approvedTopics = await query(app, uid.editorialTopic).findMany({
+    where: {
+      status: 'approved',
+    },
+    orderBy: [
+      { createdAt: 'asc' },
+    ],
+    limit: CANDIDATE_LIMIT,
+  });
+  const selectedTopics = approvedTopics.sort(compareApprovedTopics).slice(0, limit);
+  const results = [];
+
+  for (const topic of selectedTopics) {
+    let generationResult = null;
+    let generationError = null;
+
+    try {
+      generationResult = await generateTopicPage(app, { topicId: topic.id });
+    } catch (error) {
+      generationError = error;
+    } finally {
+      try {
+        await recoverProcessingTopic(app, topic.id, generationError?.message);
+      } catch (recoveryError) {
+        generationError = generationError || recoveryError;
+      }
+    }
+
+    results.push(buildBulkItemResult({
+      topic,
+      generationResult,
+      error: generationError,
+    }));
+  }
+
+  return {
+    attempted: results.length,
+    generated: results.filter((result) => result.action === 'generated').length,
+    reused: results.filter((result) => result.action === 'reused').length,
+    failed: results.filter((result) => result.action === 'failed').length,
+    results,
+  };
+};
+
 module.exports = {
   listTopics,
   approveTopic,
   rejectTopic,
   moveTopicToPending,
   generateTopicPage,
+  bulkGenerateApprovedTopics,
 };
