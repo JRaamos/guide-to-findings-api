@@ -19,6 +19,7 @@
     "import:keywords": "node scripts/import-keywords.js",
     "import:trend-topics": "node scripts/import-trend-topics.js",
     "refresh:topic-scores": "node scripts/refresh-topic-scores.js",
+    "simulate:intent-ranking": "node scripts/simulate-intent-ranking.js",
     "inspect:topic-clusters": "node scripts/inspect-topic-clusters.js",
     "discover:trends": "node scripts/discover-trends.js",
     "sync:ml:term": "node scripts/sync-mercadolivre-ranking-by-term.js",
