@@ -54,11 +54,12 @@ const getIntentModifier = (topic) => {
 
 const describeTopic = (topic) => {
   const intent = normalizeIntent(topic?.intent);
+  const intentModifier = getIntentModifier(topic);
   const editorialKey = buildEditorialKey({
     term: topic?.keyword || topic?.sourceTerm,
     normalizedTerm: topic?.normalizedKeyword,
     intent,
-    intentModifier: getIntentModifier(topic),
+    intentModifier,
   });
   const clusterKey = buildEditorialTermKey({
     term: topic?.sourceTerm || topic?.keyword,
@@ -71,6 +72,8 @@ const describeTopic = (topic) => {
     editorialKey,
     clusterKey,
     intent,
+    intentModifier,
+    keyword: topic?.keyword || topic?.normalizedKeyword || null,
   };
 };
 
@@ -90,6 +93,7 @@ const describePage = (page) => {
       intent,
     }),
     intent,
+    title: page?.title || page?.slug || null,
   };
 };
 
@@ -111,41 +115,72 @@ const getDemandScore = (topic) => {
   const trendScore = Number(getMetadata(topic).trendScore);
 
   if (!Number.isFinite(trendScore)) {
-    return 10;
+    return {
+      value: 10,
+      reason: 'Sem sinal do Google Trends; aplicado baseline deterministico de demanda',
+    };
   }
 
-  return Math.round((clamp(trendScore, 0, 100) / 100) * 40);
+  const normalizedTrendScore = clamp(trendScore, 0, 100);
+
+  return {
+    value: Math.round((normalizedTrendScore / 100) * 40),
+    reason: `Google Trends score ${normalizedTrendScore}`,
+  };
 };
 
 const getClusterGapScore = (topicDescriptor, publishedPages) => {
   const clusterPages = publishedPages.filter((page) => page.clusterKey === topicDescriptor.clusterKey);
 
   if (!clusterPages.length) {
-    return 25;
+    return {
+      value: 25,
+      reason: `Nenhuma pagina publicada no cluster ${topicDescriptor.clusterKey || 'desconhecido'}`,
+    };
   }
 
   const sameIntentPages = clusterPages.filter((page) => page.intent === topicDescriptor.intent);
 
   if (!sameIntentPages.length) {
-    return 25;
+    return {
+      value: 25,
+      reason: `Nenhuma pagina publicada para ${topicDescriptor.intent} no cluster ${topicDescriptor.clusterKey}`,
+    };
   }
 
-  const alreadyCovered = sameIntentPages.some((page) => {
+  const alreadyCovered = sameIntentPages.find((page) => {
     return page.editorialKey === topicDescriptor.editorialKey ||
       tokenSimilarity(page.normalizedKeyword, topicDescriptor.normalizedKeyword) >= 0.65;
   });
 
-  return alreadyCovered ? 0 : 12;
+  if (alreadyCovered) {
+    return {
+      value: 0,
+      reason: `Intent ja coberto por pagina publicada: ${alreadyCovered.title || alreadyCovered.editorialKey}`,
+    };
+  }
+
+  return {
+    value: 12,
+    reason: `Cluster possui pagina ${topicDescriptor.intent}, mas sem cobertura editorial equivalente`,
+  };
 };
 
 const getCommercialIntentScore = (topic) => {
   const intent = normalizeIntent(topic?.intent);
 
-  return COMMERCIAL_INTENT_SCORES[intent] ?? COMMERCIAL_INTENT_SCORES.informational;
+  const value = COMMERCIAL_INTENT_SCORES[intent] ?? COMMERCIAL_INTENT_SCORES.informational;
+  const level = value >= 18 ? 'alta' : value >= 10 ? 'media' : 'baixa';
+
+  return {
+    value,
+    reason: `${intent} possui intencao comercial ${level}`,
+  };
 };
 
 const getCompetitionPenalty = (topicDescriptor, competitors) => {
   let penalty = 0;
+  let closestCompetitor = null;
 
   for (const competitor of competitors) {
     if (competitor.id === topicDescriptor.id && competitor.entityType === 'topic') {
@@ -161,28 +196,48 @@ const getCompetitionPenalty = (topicDescriptor, competitors) => {
       competitor.editorialKey &&
       competitor.editorialKey === topicDescriptor.editorialKey
     ) {
-      return -20;
+      return {
+        value: -20,
+        reason: `${competitor.entityType === 'page' ? 'Pagina publicada' : 'Topic aprovado'} com editorialKey equivalente: ${competitor.title || competitor.keyword || competitor.editorialKey}`,
+      };
     }
 
     if (
       topicDescriptor.normalizedKeyword &&
       competitor.normalizedKeyword === topicDescriptor.normalizedKeyword
     ) {
-      return -20;
+      return {
+        value: -20,
+        reason: `${competitor.entityType === 'page' ? 'Pagina publicada' : 'Topic aprovado'} com keyword equivalente: ${competitor.title || competitor.keyword || competitor.normalizedKeyword}`,
+      };
     }
 
     const similarity = tokenSimilarity(competitor.normalizedKeyword, topicDescriptor.normalizedKeyword);
 
     if (similarity >= 0.8) {
-      penalty = Math.min(penalty, -15);
+      if (penalty > -15) {
+        penalty = -15;
+        closestCompetitor = competitor;
+      }
     } else if (similarity >= 0.65) {
-      penalty = Math.min(penalty, -10);
+      if (penalty > -10) {
+        penalty = -10;
+        closestCompetitor = competitor;
+      }
     } else if (similarity >= 0.5) {
-      penalty = Math.min(penalty, -5);
+      if (penalty > -5) {
+        penalty = -5;
+        closestCompetitor = competitor;
+      }
     }
   }
 
-  return penalty;
+  return {
+    value: penalty,
+    reason: closestCompetitor
+      ? `Conteudo semelhante existe: ${closestCompetitor.title || closestCompetitor.keyword || closestCompetitor.editorialKey}`
+      : 'Nenhuma pagina publicada ou topic aprovado com similaridade relevante',
+  };
 };
 
 const parseDate = (value) => {
@@ -202,29 +257,33 @@ const getFreshnessScore = (topic, now) => {
   ].map(parseDate).filter(Boolean);
 
   if (!candidateDates.length) {
-    return 0;
+    return {
+      value: 0,
+      reason: 'Topic sem data de descoberta valida',
+    };
   }
 
   const mostRecentDate = new Date(Math.max(...candidateDates.map((date) => date.getTime())));
   const ageInDays = Math.max(0, (now.getTime() - mostRecentDate.getTime()) / (24 * 60 * 60 * 1000));
 
+  let value = 0;
+
   if (ageInDays <= 7) {
-    return 15;
+    value = 15;
+  } else if (ageInDays <= 30) {
+    value = 12;
+  } else if (ageInDays <= 90) {
+    value = 8;
+  } else if (ageInDays <= 180) {
+    value = 4;
   }
 
-  if (ageInDays <= 30) {
-    return 12;
-  }
-
-  if (ageInDays <= 90) {
-    return 8;
-  }
-
-  if (ageInDays <= 180) {
-    return 4;
-  }
-
-  return 0;
+  return {
+    value,
+    reason: value
+      ? `Topic descoberto ha aproximadamente ${Math.floor(ageInDays)} dia(s)`
+      : 'Topic descoberto ha mais de 180 dias',
+  };
 };
 
 const createScoringContext = async (strapiInstance) => {
@@ -280,7 +339,7 @@ const scoreTopic = async (strapiInstance, topic, options = {}) => {
     freshness: getFreshnessScore(topic, now),
   };
   const score = clamp(
-    Object.values(breakdown).reduce((total, value) => total + value, 0),
+    Object.values(breakdown).reduce((total, item) => total + item.value, 0),
     0,
     100
   );
@@ -293,5 +352,6 @@ const scoreTopic = async (strapiInstance, topic, options = {}) => {
 
 module.exports = {
   createScoringContext,
+  describeTopic,
   scoreTopic,
 };

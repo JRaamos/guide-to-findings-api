@@ -6,7 +6,7 @@ const {
 } = require('./topic-scoring');
 
 const EDITORIAL_TOPIC_UID = 'api::editorial-topic.editorial-topic';
-const SCORABLE_STATUSES = ['pending', 'approved'];
+const SCORABLE_STATUSES = ['pending', 'approved', 'published'];
 
 const getStrapi = (strapiInstance) => {
   const activeStrapi = strapiInstance || global.strapi;
@@ -75,7 +75,7 @@ const refreshTopicScores = async (strapiInstance) => {
 
   return {
     processed: scoredTopics.length,
-    ignoredStatuses: ['processing', 'published', 'rejected'],
+    ignoredStatuses: ['processing', 'rejected'],
     topics: scoredTopics,
   };
 };

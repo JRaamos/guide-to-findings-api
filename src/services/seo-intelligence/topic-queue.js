@@ -1,5 +1,12 @@
 'use strict';
 
+const {
+  buildIntentProductSelectionPlan,
+} = require('./intent-product-selection');
+const {
+  describeTopic,
+} = require('./topic-scoring');
+
 const uid = {
   editorialTopic: 'api::editorial-topic.editorial-topic',
 };
@@ -12,6 +19,28 @@ const FINAL_STATUSES = new Set(['processing', 'published']);
 const DEFAULT_SITE_ID = 'MLB';
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
+
+const getBreakdownValue = (item) => {
+  return Number(item && typeof item === 'object' ? item.value : item) || 0;
+};
+
+const resolveDuplicationRisk = (topic, productSelectionPlan) => {
+  if (topic.page?.id) {
+    return 'high';
+  }
+
+  const competitionPenalty = getBreakdownValue(topic.metadata?.topicScoreBreakdown?.competitionPenalty);
+
+  if (competitionPenalty <= -15) {
+    return 'high';
+  }
+
+  if (competitionPenalty < 0) {
+    return 'medium';
+  }
+
+  return productSelectionPlan.duplicationRisk;
+};
 
 const getStrapi = (strapiInstance) => {
   const activeStrapi = strapiInstance || global.strapi;
@@ -33,37 +62,55 @@ const parsePositiveInteger = (value, fallback) => {
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : fallback;
 };
 
-const serializeTopic = (topic) => ({
-  id: topic.id,
-  documentId: topic.documentId,
-  keyword: topic.keyword,
-  normalizedKeyword: topic.normalizedKeyword,
-  intent: topic.intent,
-  template: topic.template,
-  status: topic.status,
-  priority: topic.priority,
-  source: topic.source,
-  sourceMarketplace: topic.sourceMarketplace,
-  sourceTerm: topic.sourceTerm,
-  sourceCategoryId: topic.sourceCategoryId,
-  sourceCategoryName: topic.sourceCategoryName,
-  page: topic.page?.id ? {
-    id: topic.page.id,
-    documentId: topic.page.documentId,
-    title: topic.page.title,
-    slug: topic.page.slug,
-    status: topic.page.status,
-  } : null,
-  metadata: topic.metadata,
-  topicScore: Number(topic.metadata?.topicScore) || 0,
-  topicScoreBreakdown: topic.metadata?.topicScoreBreakdown || null,
-  generatedAt: topic.generatedAt,
-  approvedAt: topic.approvedAt,
-  publishedAt: topic.publishedAt,
-  rejectedAt: topic.rejectedAt,
-  createdAt: topic.createdAt,
-  updatedAt: topic.updatedAt,
-});
+const serializeTopic = (topic) => {
+  const descriptor = describeTopic(topic);
+  const productSelectionPlan = buildIntentProductSelectionPlan({
+    intent: descriptor.intent,
+    keyword: topic.keyword,
+    clusterKey: descriptor.clusterKey,
+    intentModifier: descriptor.intentModifier,
+  });
+
+  return {
+    id: topic.id,
+    documentId: topic.documentId,
+    keyword: topic.keyword,
+    normalizedKeyword: topic.normalizedKeyword,
+    intent: topic.intent,
+    intentModifier: descriptor.intentModifier,
+    template: topic.template,
+    status: topic.status,
+    priority: topic.priority,
+    source: topic.source,
+    sourceMarketplace: topic.sourceMarketplace,
+    sourceTerm: topic.sourceTerm,
+    sourceCategoryId: topic.sourceCategoryId,
+    sourceCategoryName: topic.sourceCategoryName,
+    clusterKey: descriptor.clusterKey,
+    editorialKey: descriptor.editorialKey,
+    trendScore: Number.isFinite(Number(topic.metadata?.trendScore))
+      ? Number(topic.metadata.trendScore)
+      : null,
+    duplicationRisk: resolveDuplicationRisk(topic, productSelectionPlan),
+    productSelectionPlan,
+    page: topic.page?.id ? {
+      id: topic.page.id,
+      documentId: topic.page.documentId,
+      title: topic.page.title,
+      slug: topic.page.slug,
+      status: topic.page.status,
+    } : null,
+    metadata: topic.metadata,
+    topicScore: Number(topic.metadata?.topicScore) || 0,
+    topicScoreBreakdown: topic.metadata?.topicScoreBreakdown || null,
+    generatedAt: topic.generatedAt,
+    approvedAt: topic.approvedAt,
+    publishedAt: topic.publishedAt,
+    rejectedAt: topic.rejectedAt,
+    createdAt: topic.createdAt,
+    updatedAt: topic.updatedAt,
+  };
+};
 
 const buildWhere = ({ status, intent }) => {
   const where = {};

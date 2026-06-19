@@ -59,6 +59,67 @@ const INTENT_LABELS = {
   useCase: 'Uso especifico',
 };
 
+const SCORE_BREAKDOWN_LABELS = {
+  demand: 'Demand',
+  clusterGap: 'Cluster gap',
+  commercialIntent: 'Commercial intent',
+  competitionPenalty: 'Competition',
+  freshness: 'Freshness',
+};
+
+const SIGNAL_LABELS = {
+  position: 'popularidade',
+  availability: 'disponibilidade',
+  rating: 'avaliacao',
+  price: 'preco',
+  reviewCount: 'reviews',
+  oldPrice: 'desconto',
+  brand: 'marca',
+  model: 'modelo',
+  attributes: 'atributos',
+  weight: 'peso',
+  battery: 'bateria',
+  ram: 'RAM',
+  storage: 'SSD/armazenamento',
+  processor: 'processador',
+  gpu: 'GPU',
+  power: 'potencia',
+  capacity: 'capacidade',
+  cleaning: 'facilidade de limpeza',
+};
+
+const DUPLICATION_RISK_LABELS = {
+  low: 'Baixo',
+  medium: 'Medio',
+  high: 'Alto',
+};
+
+const normalizeBreakdownItem = (item) => {
+  if (item && typeof item === 'object') {
+    return {
+      value: Number(item.value) || 0,
+      reason: item.reason || 'Motivo ainda nao calculado',
+    };
+  }
+
+  return {
+    value: Number(item) || 0,
+    reason: 'Execute o refresh de scores para atualizar a explicacao',
+  };
+};
+
+const getBreakdownEntries = (breakdown = {}) => {
+  return Object.keys(SCORE_BREAKDOWN_LABELS).map((key) => ({
+    key,
+    label: SCORE_BREAKDOWN_LABELS[key],
+    ...normalizeBreakdownItem(breakdown?.[key]),
+  }));
+};
+
+const formatRequiredSignals = (signals = []) => {
+  return signals.map((signal) => SIGNAL_LABELS[signal] || signal).join(', ');
+};
+
 const formatDate = (value) => {
   if (!value) {
     return 'n/a';
@@ -201,6 +262,11 @@ const TopicActions = ({ topic, onAction, onGenerate, isUpdating, isGenerating })
 };
 
 const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => {
+  const [isScoreExpanded, setIsScoreExpanded] = useState(false);
+  const breakdownEntries = getBreakdownEntries(topic.topicScoreBreakdown);
+  const selectionPlan = topic.productSelectionPlan || {};
+  const duplicationRisk = topic.duplicationRisk || selectionPlan.duplicationRisk || 'high';
+
   return (
     <Box background="neutral0" borderColor="neutral150" hasRadius padding={4}>
       <Flex direction="column" alignItems="stretch" gap={4}>
@@ -232,23 +298,29 @@ const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => 
             </Typography>
             <Typography>{topic.template || 'n/a'}</Typography>
           </Box>
-          <Box minWidth="90px">
+          <Box minWidth="150px">
+            <Typography variant="sigma" textColor="neutral600">
+              Fonte
+            </Typography>
+            <Typography>{topic.source || topic.sourceMarketplace || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="160px">
+            <Typography variant="sigma" textColor="neutral600">
+              Termo pesquisado
+            </Typography>
+            <Typography>{topic.sourceTerm || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="110px">
+            <Typography variant="sigma" textColor="neutral600">
+              Trend score
+            </Typography>
+            <Typography>{topic.trendScore ?? 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="100px">
             <Typography variant="sigma" textColor="neutral600">
               Priority
             </Typography>
             <Typography>{topic.priority ?? 'n/a'}</Typography>
-          </Box>
-          <Box minWidth="160px">
-            <Typography variant="sigma" textColor="neutral600">
-              Source Term
-            </Typography>
-            <Typography>{topic.sourceTerm || 'n/a'}</Typography>
-          </Box>
-          <Box minWidth="160px">
-            <Typography variant="sigma" textColor="neutral600">
-              Created At
-            </Typography>
-            <Typography>{formatDate(topic.createdAt)}</Typography>
           </Box>
           <Box minWidth="160px">
             <Typography variant="sigma" textColor="neutral600">
@@ -259,6 +331,100 @@ const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => 
             </Typography>
           </Box>
         </Flex>
+
+        <Flex gap={5} wrap="wrap">
+          <Box minWidth="220px" flex="1 1 280px">
+            <Typography variant="sigma" textColor="neutral600">
+              Cluster key
+            </Typography>
+            <Typography>{topic.clusterKey || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="260px" flex="1 1 340px">
+            <Typography variant="sigma" textColor="neutral600">
+              Editorial key
+            </Typography>
+            <Typography>{topic.editorialKey || 'n/a'}</Typography>
+          </Box>
+          <Box minWidth="140px">
+            <Typography variant="sigma" textColor="neutral600">
+              Risco de duplicacao
+            </Typography>
+            <Badge active={duplicationRisk === 'high'}>
+              {DUPLICATION_RISK_LABELS[duplicationRisk] || duplicationRisk}
+            </Badge>
+          </Box>
+        </Flex>
+
+        <Box background="neutral100" borderColor="neutral150" hasRadius padding={4}>
+          <Flex direction="column" alignItems="stretch" gap={3}>
+            <Box>
+              <Typography variant="sigma" textColor="neutral600">
+                Como esta pagina deve se diferenciar
+              </Typography>
+              <Typography>
+                {selectionPlan.rankingDifferentiation || 'Plano de diferenciacao indisponivel.'}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="sigma" textColor="neutral600">
+                Sinais necessarios
+              </Typography>
+              <Typography>
+                {formatRequiredSignals(selectionPlan.requiredSignals) || 'n/a'}
+              </Typography>
+            </Box>
+          </Flex>
+        </Box>
+
+        <Box>
+          <Flex direction="column" alignItems="stretch" gap={3}>
+            <Flex justifyContent="space-between" alignItems="center" gap={3} wrap="wrap">
+              <Typography variant="pi" textColor="neutral600">
+                {breakdownEntries
+                  .map((item) => `${item.label} ${item.value > 0 ? '+' : ''}${item.value}`)
+                  .join(' | ')}
+              </Typography>
+              <Button
+                type="button"
+                size="S"
+                variant="tertiary"
+                onClick={() => setIsScoreExpanded((current) => !current)}
+              >
+                {isScoreExpanded ? 'Ocultar detalhes' : 'Por que esse score?'}
+              </Button>
+            </Flex>
+
+            {isScoreExpanded ? (
+              <Box background="neutral100" borderColor="neutral150" hasRadius padding={4}>
+                <Flex direction="column" alignItems="stretch" gap={3}>
+                  {breakdownEntries.map((item) => (
+                    <Box key={item.key}>
+                      <Typography fontWeight="bold">
+                        {item.value > 0 ? '+' : ''}{item.value} {item.label}
+                      </Typography>
+                      <Typography variant="pi" textColor="neutral600">
+                        {item.reason}
+                      </Typography>
+                    </Box>
+                  ))}
+
+                  {selectionPlan.productSelectionRules?.length ? (
+                    <Box>
+                      <Typography fontWeight="bold">Regras de selecao planejadas</Typography>
+                      <Flex direction="column" alignItems="stretch" gap={1} paddingTop={2}>
+                        {selectionPlan.productSelectionRules.map((rule) => (
+                          <Typography key={rule} variant="pi" textColor="neutral600">
+                            - {rule}
+                          </Typography>
+                        ))}
+                      </Flex>
+                    </Box>
+                  ) : null}
+                </Flex>
+              </Box>
+            ) : null}
+          </Flex>
+        </Box>
 
         <TopicActions
           topic={topic}
