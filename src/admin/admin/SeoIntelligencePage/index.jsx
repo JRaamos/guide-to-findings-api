@@ -16,7 +16,14 @@ import { useFetchClient } from '@strapi/strapi/admin';
 
 const TOPICS_ENDPOINT = '/seo-intelligence/topics';
 const CLUSTERS_ENDPOINT = '/seo-intelligence/clusters';
+const DISCOVER_TOPICS_ENDPOINT = '/seo-intelligence/topics/discover';
 const DEFAULT_CLUSTER_LIMIT = 50;
+
+const DISCOVERY_SOURCE_OPTIONS = [
+  { value: 'templates', label: 'Templates deterministicos' },
+  { value: 'trends', label: 'Google Trends' },
+  { value: 'both', label: 'Ambos' },
+];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -411,6 +418,10 @@ const SeoIntelligencePage = () => {
   const [updatingTopicId, setUpdatingTopicId] = useState(null);
   const [generatingTopicId, setGeneratingTopicId] = useState(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [discoveryTerm, setDiscoveryTerm] = useState('');
+  const [discoverySource, setDiscoverySource] = useState('both');
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveryResult, setDiscoveryResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [generationResult, setGenerationResult] = useState(null);
@@ -578,6 +589,48 @@ const SeoIntelligencePage = () => {
     }
   };
 
+  const handleDiscoverTopics = async (event) => {
+    event.preventDefault();
+
+    const term = discoveryTerm.trim();
+
+    if (!term) {
+      setErrorMessage('Informe um termo base para descobrir topicos.');
+      return;
+    }
+
+    setIsDiscovering(true);
+    resetFeedback();
+    setDiscoveryResult(null);
+
+    try {
+      const response = await post(DISCOVER_TOPICS_ENDPOINT, {
+        term,
+        source: discoverySource,
+      });
+      const result = response.data || {};
+
+      await loadTopics();
+      setDiscoveryResult({
+        created: result.created || 0,
+        updated: result.updated || 0,
+        skipped: result.skipped || 0,
+        scored: result.scored || 0,
+        warnings: Array.isArray(result.warnings) ? result.warnings : [],
+      });
+      setSuccessMessage('Descoberta concluida e fila de topicos atualizada.');
+    } catch (error) {
+      const status = error.response?.status || error.response?.data?.error?.status;
+      const message = status === 429
+        ? 'Google Trends limitou temporariamente as requisicoes. Tente novamente depois.'
+        : error.response?.data?.error?.message || 'Nao foi possivel descobrir topicos agora.';
+
+      setErrorMessage(message);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   const handleFilterSubmit = (event) => {
     event.preventDefault();
     loadTopics();
@@ -708,6 +761,75 @@ const SeoIntelligencePage = () => {
 
           {activeSection === 'topics' ? (
             <>
+              <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+                <form onSubmit={handleDiscoverTopics}>
+                  <Flex direction="column" alignItems="stretch" gap={4}>
+                    <Flex direction="column" alignItems="flex-start" gap={1}>
+                      <Typography variant="beta">Descobrir topicos</Typography>
+                      <Typography textColor="neutral600">
+                        Importe oportunidades como pending usando templates, Google Trends ou ambos.
+                      </Typography>
+                    </Flex>
+
+                    <Flex alignItems="flex-end" gap={4} wrap="wrap">
+                      <Box flex="1 1 280px">
+                        <TextInput
+                          label="Termo base"
+                          name="discovery-term"
+                          value={discoveryTerm}
+                          placeholder="notebook"
+                          onChange={(event) => setDiscoveryTerm(event.target.value)}
+                        />
+                      </Box>
+                      <Box minWidth="230px">
+                        <SingleSelect
+                          label="Fonte"
+                          value={discoverySource}
+                          onChange={setDiscoverySource}
+                        >
+                          {DISCOVERY_SOURCE_OPTIONS.map((option) => (
+                            <SingleSelectOption key={option.value} value={option.value}>
+                              {option.label}
+                            </SingleSelectOption>
+                          ))}
+                        </SingleSelect>
+                      </Box>
+                      <Button type="submit" loading={isDiscovering}>
+                        Descobrir e importar
+                      </Button>
+                    </Flex>
+                  </Flex>
+                </form>
+
+                {discoveryResult ? (
+                  <Flex direction="column" alignItems="stretch" gap={3} paddingTop={5}>
+                    <Flex gap={3} wrap="wrap">
+                      <Badge active={Boolean(discoveryResult.created)}>
+                        Criados {discoveryResult.created}
+                      </Badge>
+                      <Badge active={Boolean(discoveryResult.updated)}>
+                        Atualizados {discoveryResult.updated}
+                      </Badge>
+                      <Badge>Ignorados {discoveryResult.skipped}</Badge>
+                      <Badge active={Boolean(discoveryResult.scored)}>
+                        Pontuados {discoveryResult.scored}
+                      </Badge>
+                    </Flex>
+
+                    {discoveryResult.warnings.map((warning, index) => (
+                      <Alert
+                        key={`${warning.code || 'warning'}-${index}`}
+                        closeLabel="Fechar aviso"
+                        title="Aviso"
+                        variant="warning"
+                      >
+                        {warning.message || warning.reason || 'A fonte retornou um aviso.'}
+                      </Alert>
+                    ))}
+                  </Flex>
+                ) : null}
+              </Box>
+
               <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
                 <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
                   <Flex direction="column" alignItems="flex-start" gap={1}>

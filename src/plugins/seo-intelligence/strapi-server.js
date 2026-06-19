@@ -2,6 +2,9 @@
 
 const topicQueue = require('../../services/seo-intelligence/topic-queue');
 const topicClusters = require('../../services/seo-intelligence/topic-clusters');
+const {
+  discoverAndImportTopics,
+} = require('../../services/seo-intelligence/topic-discovery-import');
 
 module.exports = () => ({
   routes: {
@@ -20,6 +23,14 @@ module.exports = () => ({
           method: 'GET',
           path: '/clusters',
           handler: 'clusters.find',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
+        {
+          method: 'POST',
+          path: '/topics/discover',
+          handler: 'topics.discover',
           config: {
             policies: ['admin::isAuthenticatedAdmin'],
           },
@@ -90,6 +101,19 @@ module.exports = () => ({
     },
 
     topics: {
+      async discover(ctx) {
+        try {
+          ctx.body = await discoverAndImportTopics(strapi, {
+            term: ctx.request.body?.term,
+            source: ctx.request.body?.source,
+          });
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] Topic discovery failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
+
       async find(ctx) {
         try {
           ctx.body = {
