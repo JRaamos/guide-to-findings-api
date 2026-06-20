@@ -381,6 +381,12 @@ const TopicRow = ({ topic, onAction, onGenerate, isUpdating, isGenerating }) => 
           </Flex>
         </Box>
 
+        {topic.productConstraint?.type === 'brand' ? (
+          <Alert closeLabel="Fechar alerta de restricao" title={topic.productConstraint.label} variant="warning">
+            {topic.productConstraint.warning}
+          </Alert>
+        ) : null}
+
         <Box>
           <Flex direction="column" alignItems="stretch" gap={3}>
             <Flex justifyContent="space-between" alignItems="center" gap={3} wrap="wrap">

@@ -198,6 +198,7 @@ const syncMarketplaceRankingByTerm = async (
       displayedEntries: editorialResult.displayedEntries,
       protectedPublishedPage: editorialResult.protectedPublishedPage,
       rankingStrategy: editorialResult.rankingStrategy,
+      productConstraints: editorialResult.productConstraints || null,
     },
     warnings,
     errors,

@@ -6,6 +6,9 @@ const {
 const {
   describeTopic,
 } = require('./topic-scoring');
+const {
+  detectTopicProductConstraint,
+} = require('./topic-product-constraints');
 
 const uid = {
   editorialTopic: 'api::editorial-topic.editorial-topic',
@@ -64,6 +67,12 @@ const parsePositiveInteger = (value, fallback) => {
 
 const serializeTopic = (topic) => {
   const descriptor = describeTopic(topic);
+  const productConstraint = detectTopicProductConstraint({
+    keyword: topic.keyword,
+    title: topic.metadata?.titleHint || topic.page?.title,
+    topic: topic.normalizedKeyword,
+    brands: [topic.metadata?.brand].filter(Boolean),
+  });
   const productSelectionPlan = buildIntentProductSelectionPlan({
     intent: descriptor.intent,
     keyword: topic.keyword,
@@ -100,6 +109,7 @@ const serializeTopic = (topic) => {
       : null,
     duplicationRisk: resolveDuplicationRisk(topic, productSelectionPlan),
     productSelectionPlan,
+    productConstraint,
     page: topic.page?.id ? {
       id: topic.page.id,
       documentId: topic.page.documentId,

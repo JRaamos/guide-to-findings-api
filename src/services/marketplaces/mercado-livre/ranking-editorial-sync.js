@@ -3,6 +3,9 @@
 const {
   rankProductsForIntent,
 } = require('../../seo-intelligence/intent-aware-ranking');
+const {
+  applyTopicProductConstraints,
+} = require('../../seo-intelligence/topic-product-constraints');
 
 const uid = {
   marketplaceRanking: 'api::marketplace-ranking.marketplace-ranking',
@@ -303,6 +306,8 @@ const buildEligibleItems = (entries) => {
       entryId: entry.id,
       position: entry.position,
       product: entry.product,
+      brandSnapshot: entry.brandSnapshot,
+      titleSnapshot: entry.titleSnapshot,
       rankingProduct: {
         ...entry.product,
         position: entry.position,
@@ -343,6 +348,7 @@ const buildRankingItemData = ({
   originalPosition,
   intentScore,
   scoreBreakdown,
+  productConstraint,
   existing,
 }) => ({
   position,
@@ -357,6 +363,7 @@ const buildRankingItemData = ({
     originalMarketplacePosition: originalPosition,
     intentScore,
     intentScoreBreakdown: scoreBreakdown,
+    topicProductConstraint: productConstraint || null,
   },
   ctaText: existing?.ctaText || DEFAULT_CTA_TEXT,
   status: 'active',
@@ -365,7 +372,7 @@ const buildRankingItemData = ({
   affiliateLink: affiliateLink?.id || null,
 });
 
-const upsertRankingItems = async (strapi, ranking, items) => {
+const upsertRankingItems = async (strapi, ranking, items, productConstraint = null) => {
   const existingItems = await findExistingRankingItems(strapi, ranking.id);
   const activeProductIds = new Set(items.map((item) => item.product.id));
   const existingByProductId = new Map(
@@ -407,6 +414,7 @@ const upsertRankingItems = async (strapi, ranking, items) => {
       originalPosition: item.sourcePosition,
       intentScore: item.intentScore,
       scoreBreakdown: item.scoreBreakdown,
+      productConstraint,
       existing,
     });
     let record;
@@ -488,12 +496,19 @@ const syncMarketplaceRankingEditorial = async (
   const entries = await findMarketplaceRankingEntries(strapi, marketplaceRanking.id);
   const { items, skipped } = buildEligibleItems(entries);
   const normalizedDisplayLimit = normalizeDisplayLimit(displayLimit);
-  const itemsByProductId = new Map(items.map((item) => [item.product.id, item]));
+  const constraintResult = applyTopicProductConstraints({
+    items,
+    keyword: keyword || marketplaceRanking.title,
+    title: titleHint || marketplaceRanking.title,
+    displayLimit: normalizedDisplayLimit,
+  });
+  const constrainedItems = constraintResult.items;
+  const itemsByProductId = new Map(constrainedItems.map((item) => [item.product.id, item]));
   const rankedProducts = rankProductsForIntent({
     intent: editorialIntent,
     keyword: keyword || marketplaceRanking.title,
     intentModifier,
-    products: items.map((item) => item.rankingProduct),
+    products: constrainedItems.map((item) => item.rankingProduct),
   });
   const displayItems = rankedProducts
     .slice(0, normalizedDisplayLimit)
@@ -509,7 +524,7 @@ const syncMarketplaceRankingEditorial = async (
       };
     });
 
-  if (!displayItems.length) {
+  if (!displayItems.length && !constraintResult.constraint) {
     throw new Error('No publishable MarketplaceRankingEntry with linked Product found');
   }
 
@@ -520,7 +535,7 @@ const syncMarketplaceRankingEditorial = async (
     slugHint,
   });
 
-  if (rankingResult.protectedPublishedPage) {
+  if (rankingResult.protectedPublishedPage && !constraintResult.constraint) {
     return {
       success: true,
       marketplaceRankingId: marketplaceRanking.id,
@@ -538,6 +553,7 @@ const syncMarketplaceRankingEditorial = async (
       deactivatedRankingItems: 0,
       skippedEntries: skipped,
       products: [],
+      productConstraints: null,
     };
   }
 
@@ -552,14 +568,19 @@ const syncMarketplaceRankingEditorial = async (
     );
   }
 
-  const itemResult = await upsertRankingItems(strapi, rankingResult.record, displayItems);
+  const itemResult = await upsertRankingItems(
+    strapi,
+    rankingResult.record,
+    displayItems,
+    constraintResult.constraint
+  );
 
   return {
     success: true,
     marketplaceRankingId: marketplaceRanking.id,
     rankingId: rankingResult.record.id,
     rankingAction: rankingResult.action,
-    protectedPublishedPage: false,
+    protectedPublishedPage: rankingResult.protectedPublishedPage,
     rankingStrategy: rankedProducts[0]?.strategy || 'best',
     siteId: marketplaceRanking.siteId,
     categoryId: marketplaceRanking.externalCategoryId,
@@ -572,6 +593,12 @@ const syncMarketplaceRankingEditorial = async (
     deactivatedRankingItems: itemResult.deactivatedRankingItems,
     skippedEntries: skipped,
     products: itemResult.products,
+    productConstraints: {
+      constraint: constraintResult.constraint,
+      matchedProducts: constrainedItems.length,
+      blockedProducts: constraintResult.blockedItems.length,
+      validationError: constraintResult.validationError,
+    },
   };
 };
 

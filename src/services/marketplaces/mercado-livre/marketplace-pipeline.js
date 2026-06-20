@@ -5,6 +5,9 @@ const { generatePageFromRanking } = require('../../ai-generator');
 const { buildCommandContext } = require('../../editorial-intelligence/command-context');
 const { buildEditorialPlan } = require('../../editorial-intelligence/editorial-plan');
 const { findReusablePage } = require('../../editorial-intelligence/page-reuse-engine');
+const {
+  detectTopicProductConstraint,
+} = require('../../seo-intelligence/topic-product-constraints');
 const publicationWorkflow = require('../../publication-workflow');
 const {
   revalidateFrontendPage,
@@ -42,6 +45,7 @@ const uid = {
   ranking: 'api::ranking.ranking',
   rankingItem: 'api::ranking-item.ranking-item',
   page: 'api::page.page',
+  product: 'api::product.product',
 };
 
 const query = (strapi, modelUid) => strapi.db.query(modelUid);
@@ -57,6 +61,15 @@ const normalizeText = (value = '') => {
 
 const normalizeTerm = (term) => {
   return typeof term === 'string' ? term.trim() : '';
+};
+
+const getProductBrandCandidates = async (strapi) => {
+  const products = await query(strapi, uid.product).findMany({
+    select: ['brand'],
+    limit: 10000,
+  });
+
+  return [...new Set(products.map((product) => normalizeTerm(product.brand)).filter(Boolean))];
 };
 
 const tokenize = (value = '') => {
@@ -698,6 +711,7 @@ const buildEditorialRankingResult = (syncResult) => ({
   eligibleEntries: syncResult.editorialRanking?.eligibleEntries || 0,
   displayLimit: syncResult.editorialRanking?.displayLimit || 0,
   displayedEntries: syncResult.editorialRanking?.displayedEntries || 0,
+  productConstraints: syncResult.editorialRanking?.productConstraints || null,
 });
 
 const buildDefaultPageReuseResult = () => ({
@@ -752,6 +766,7 @@ const buildBaseResult = ({
     eligibleEntries: 0,
     displayLimit: 0,
     displayedEntries: 0,
+    productConstraints: null,
   },
   ai: {
     generated: false,
@@ -919,6 +934,13 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     commandContext,
     sourceMarketplace: 'mercadoLivre',
   });
+  const productBrandCandidates = await getProductBrandCandidates(strapi);
+  const detectedProductConstraint = detectTopicProductConstraint({
+    keyword: normalizedTerm,
+    title: editorialPlan.titleHint,
+    topic: commandContext.rawMessage,
+    brands: productBrandCandidates,
+  });
   const warnings = [];
   const errors = [];
   const earlyPageReuse = await findReusablePage(strapi, {
@@ -928,7 +950,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     ranking: null,
   });
 
-  if (earlyPageReuse.found) {
+  if (earlyPageReuse.found && !detectedProductConstraint) {
     warnings.push({
       step: 'page-reuse-engine',
       message: earlyPageReuse.reason,
@@ -974,6 +996,17 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     warnings,
     errors,
   });
+  const productConstraintValidationError =
+    syncResult.editorialRanking?.productConstraints?.validationError;
+
+  if (productConstraintValidationError) {
+    return withPublicationResult(result, {
+      attempted: false,
+      published: false,
+      requiresReview: true,
+      validationErrors: [productConstraintValidationError],
+    });
+  }
 
   if (!autoGenerate) {
     return result;
