@@ -12,7 +12,7 @@ const ALLOWED_TEMPLATES = new Set([
   'buying-guide',
   'comparison',
 ]);
-const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'comparison', 'buyingGuide', 'useCase', 'generic']);
+const ALLOWED_INTENTS = new Set(['best', 'costBenefit', 'gamer', 'comparison', 'buyingGuide', 'useCase', 'generic']);
 const DEFAULT_LIMIT = 10;
 const DEFAULT_TEMPLATE = 'automatic';
 const DEFAULT_SOURCE_MARKETPLACE = 'mercadoLivre';
@@ -270,6 +270,10 @@ const buildTitleHint = ({ productTerm, productCount, intent }) => {
     return `Melhores ${pluralTerm} custo-benefício`;
   }
 
+  if (intent === 'gamer') {
+    return `${getArticle(pluralTerm)} ${productCount} melhores ${pluralTerm} gamer`;
+  }
+
   if (intent === 'comparison') {
     return `Comparativo de ${pluralTerm}: veja qual escolher`;
   }
@@ -296,6 +300,10 @@ const buildSlugHint = ({ normalizedTerm, productTerm, intent, preferredSlug }) =
     return normalizeSlug(`melhores ${pluralizeLastWord(productTerm)} custo beneficio`);
   }
 
+  if (intent === 'gamer') {
+    return normalizeSlug(`melhores ${pluralizeLastWord(productTerm)} gamer`);
+  }
+
   if (intent === 'comparison') {
     return normalizeSlug(`comparativo ${pluralizeLastWord(productTerm)}`);
   }
@@ -320,6 +328,10 @@ const buildFocusKeyword = ({ productTerm, intent }) => {
 
   if (intent === 'costBenefit') {
     return `melhores ${pluralTerm} custo-benefício`;
+  }
+
+  if (intent === 'gamer') {
+    return `melhores ${pluralTerm} gamer`;
   }
 
   if (intent === 'comparison') {

@@ -34,6 +34,9 @@
     "score": {
       "type": "decimal"
     },
+    "metadata": {
+      "type": "json"
+    },
     "ctaText": {
       "type": "string"
     },

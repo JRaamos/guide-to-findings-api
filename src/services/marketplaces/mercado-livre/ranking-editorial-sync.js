@@ -1,5 +1,9 @@
 'use strict';
 
+const {
+  rankProductsForIntent,
+} = require('../../seo-intelligence/intent-aware-ranking');
+
 const uid = {
   marketplaceRanking: 'api::marketplace-ranking.marketplace-ranking',
   marketplaceRankingEntry: 'api::marketplace-ranking-entry.marketplace-ranking-entry',
@@ -100,31 +104,79 @@ const buildRankingSlug = (marketplaceRanking, title) => {
   return sanitizeText(marketplaceRanking.slug) || slugify(`${marketplaceRanking.siteId}-${title}`);
 };
 
-const findExistingRanking = async (strapi, marketplaceRanking, rankingSlug) => {
-  if (marketplaceRanking.editorialRanking?.id) {
-    return query(strapi, uid.ranking).findOne({
-      where: {
-        id: marketplaceRanking.editorialRanking.id,
-      },
-    });
-  }
-
+const findRankingWithPage = (strapi, where) => {
   return query(strapi, uid.ranking).findOne({
-    where: {
-      slug: rankingSlug,
-    },
+    where,
+    populate: ['page'],
   });
 };
 
-const upsertEditorialRanking = async (strapi, marketplaceRanking) => {
-  const title = buildRankingTitle(marketplaceRanking);
-  const slug = buildRankingSlug(marketplaceRanking, title);
-  const existing = await findExistingRanking(strapi, marketplaceRanking, slug);
+const findExistingRanking = async (
+  strapi,
+  marketplaceRanking,
+  { rankingSlug, editorialKey, editorialIntent }
+) => {
+  if (editorialKey) {
+    const intentRanking = await findRankingWithPage(strapi, { editorialKey });
+
+    if (intentRanking) {
+      return intentRanking;
+    }
+  }
+
+  if (marketplaceRanking.editorialRanking?.id) {
+    const linkedRanking = await findRankingWithPage(strapi, {
+      id: marketplaceRanking.editorialRanking.id,
+    });
+    const linkedIntentIsCompatible =
+      !editorialKey ||
+      linkedRanking?.editorialKey === editorialKey ||
+      (!linkedRanking?.editorialKey && (!linkedRanking?.page?.id || editorialIntent === 'best'));
+
+    if (linkedIntentIsCompatible) {
+      return linkedRanking;
+    }
+  }
+
+  if (!editorialKey) {
+    return findRankingWithPage(strapi, { slug: rankingSlug });
+  }
+
+  return null;
+};
+
+const hasPublishedPage = (ranking) => {
+  return ranking?.page?.status === 'published' || Boolean(ranking?.page?.publishedAt);
+};
+
+const upsertEditorialRanking = async (
+  strapi,
+  marketplaceRanking,
+  { editorialIntent, editorialKey, titleHint, slugHint }
+) => {
+  const title = sanitizeText(titleHint) || buildRankingTitle(marketplaceRanking);
+  const slug = sanitizeText(slugHint) || buildRankingSlug(marketplaceRanking, title);
+  const existing = await findExistingRanking(strapi, marketplaceRanking, {
+    rankingSlug: slug,
+    editorialKey,
+    editorialIntent,
+  });
+
+  if (hasPublishedPage(existing)) {
+    return {
+      action: 'protected-published',
+      record: existing,
+      protectedPublishedPage: true,
+    };
+  }
+
   const data = {
     title,
     slug,
     rankingType: existing?.rankingType || DEFAULT_RANKING_TYPE,
     status: existing?.status || DEFAULT_RANKING_STATUS,
+    editorialIntent: editorialIntent || existing?.editorialIntent || null,
+    editorialKey: editorialKey || existing?.editorialKey || null,
   };
 
   if (marketplaceRanking.category?.id) {
@@ -251,6 +303,17 @@ const buildEligibleItems = (entries) => {
       entryId: entry.id,
       position: entry.position,
       product: entry.product,
+      rankingProduct: {
+        ...entry.product,
+        position: entry.position,
+        name: entry.product.name || entry.titleSnapshot,
+        price: entry.product.price ?? entry.priceSnapshot,
+        oldPrice: entry.product.oldPrice ?? entry.oldPriceSnapshot,
+        rating: entry.product.rating ?? entry.ratingSnapshot,
+        reviewCount: entry.product.reviewCount ?? entry.reviewCountSnapshot,
+        brand: entry.product.brand || entry.brandSnapshot,
+        model: entry.product.model || entry.modelSnapshot,
+      },
     });
   }
 
@@ -272,7 +335,16 @@ const findExistingRankingItems = async (strapi, rankingId) => {
   });
 };
 
-const buildRankingItemData = ({ ranking, product, affiliateLink, position, existing }) => ({
+const buildRankingItemData = ({
+  ranking,
+  product,
+  affiliateLink,
+  position,
+  originalPosition,
+  intentScore,
+  scoreBreakdown,
+  existing,
+}) => ({
   position,
   title: existing?.title || product.name,
   summary: existing?.summary || product.shortDescription || product.description || null,
@@ -280,6 +352,12 @@ const buildRankingItemData = ({ ranking, product, affiliateLink, position, exist
   cons: existing?.cons || [],
   highlight: existing?.highlight || null,
   score: existing?.score ?? null,
+  metadata: {
+    ...(existing?.metadata || {}),
+    originalMarketplacePosition: originalPosition,
+    intentScore,
+    intentScoreBreakdown: scoreBreakdown,
+  },
   ctaText: existing?.ctaText || DEFAULT_CTA_TEXT,
   status: 'active',
   ranking: ranking.id,
@@ -326,6 +404,9 @@ const upsertRankingItems = async (strapi, ranking, items) => {
       product: item.product,
       affiliateLink,
       position: item.position,
+      originalPosition: item.sourcePosition,
+      intentScore: item.intentScore,
+      scoreBreakdown: item.scoreBreakdown,
       existing,
     });
     let record;
@@ -355,6 +436,8 @@ const upsertRankingItems = async (strapi, ranking, items) => {
       marketplaceProductId: item.product.marketplaceProductId,
       position: item.position,
       sourcePosition: item.sourcePosition || item.position,
+      intentScore: item.intentScore,
+      intentScoreBreakdown: item.scoreBreakdown,
       affiliateLinkId: affiliateLink?.id || null,
       sourceEntryId: item.entryId,
     });
@@ -375,6 +458,12 @@ const syncMarketplaceRankingEditorial = async (
     categoryId,
     marketplaceRankingId,
     displayLimit = DEFAULT_DISPLAY_LIMIT,
+    keyword,
+    editorialIntent = 'best',
+    intentModifier,
+    editorialKey,
+    titleHint,
+    slugHint,
   } = {}
 ) => {
   if (!strapi?.db) {
@@ -399,25 +488,69 @@ const syncMarketplaceRankingEditorial = async (
   const entries = await findMarketplaceRankingEntries(strapi, marketplaceRanking.id);
   const { items, skipped } = buildEligibleItems(entries);
   const normalizedDisplayLimit = normalizeDisplayLimit(displayLimit);
-  const displayItems = items
+  const itemsByProductId = new Map(items.map((item) => [item.product.id, item]));
+  const rankedProducts = rankProductsForIntent({
+    intent: editorialIntent,
+    keyword: keyword || marketplaceRanking.title,
+    intentModifier,
+    products: items.map((item) => item.rankingProduct),
+  });
+  const displayItems = rankedProducts
     .slice(0, normalizedDisplayLimit)
-    .map((item, index) => ({
-      ...item,
-      sourcePosition: item.position,
-      position: index + 1,
-    }));
+    .map((rankedItem) => {
+      const item = itemsByProductId.get(rankedItem.product.id);
+
+      return {
+        ...item,
+        sourcePosition: rankedItem.originalPosition,
+        position: rankedItem.editorialPosition,
+        intentScore: rankedItem.intentScore,
+        scoreBreakdown: rankedItem.scoreBreakdown,
+      };
+    });
 
   if (!displayItems.length) {
     throw new Error('No publishable MarketplaceRankingEntry with linked Product found');
   }
 
-  const rankingResult = await upsertEditorialRanking(strapi, marketplaceRanking);
+  const rankingResult = await upsertEditorialRanking(strapi, marketplaceRanking, {
+    editorialIntent,
+    editorialKey,
+    titleHint,
+    slugHint,
+  });
 
-  await linkMarketplaceRankingToEditorialRanking(
-    strapi,
-    marketplaceRanking.id,
-    rankingResult.record.id
-  );
+  if (rankingResult.protectedPublishedPage) {
+    return {
+      success: true,
+      marketplaceRankingId: marketplaceRanking.id,
+      rankingId: rankingResult.record.id,
+      rankingAction: rankingResult.action,
+      protectedPublishedPage: true,
+      siteId: marketplaceRanking.siteId,
+      categoryId: marketplaceRanking.externalCategoryId,
+      totalEntries: entries.length,
+      eligibleEntries: items.length,
+      displayLimit: normalizedDisplayLimit,
+      displayedEntries: 0,
+      createdRankingItems: 0,
+      updatedRankingItems: 0,
+      deactivatedRankingItems: 0,
+      skippedEntries: skipped,
+      products: [],
+    };
+  }
+
+  if (
+    !marketplaceRanking.editorialRanking?.id ||
+    marketplaceRanking.editorialRanking.id === rankingResult.record.id
+  ) {
+    await linkMarketplaceRankingToEditorialRanking(
+      strapi,
+      marketplaceRanking.id,
+      rankingResult.record.id
+    );
+  }
 
   const itemResult = await upsertRankingItems(strapi, rankingResult.record, displayItems);
 
@@ -426,6 +559,8 @@ const syncMarketplaceRankingEditorial = async (
     marketplaceRankingId: marketplaceRanking.id,
     rankingId: rankingResult.record.id,
     rankingAction: rankingResult.action,
+    protectedPublishedPage: false,
+    rankingStrategy: rankedProducts[0]?.strategy || 'best',
     siteId: marketplaceRanking.siteId,
     categoryId: marketplaceRanking.externalCategoryId,
     totalEntries: entries.length,

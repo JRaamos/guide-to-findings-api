@@ -216,6 +216,7 @@ const copyRankingItemsForEditorialRanking = async (strapi, sourceRankingId, targ
       cons: sourceItem.cons || [],
       highlight: sourceItem.highlight,
       score: sourceItem.score,
+      metadata: sourceItem.metadata || null,
       ctaText: sourceItem.ctaText,
       status: 'active',
       ranking: targetRankingId,
@@ -904,6 +905,11 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     siteId,
     limit: commandContext.fetchLimit,
     displayLimit: commandContext.displayLimit,
+    editorialIntent: editorialPlan.intent,
+    intentModifier: editorialPlan.intentModifier,
+    editorialKey: editorialPlan.editorialKey,
+    titleHint: editorialPlan.titleHint,
+    slugHint: editorialPlan.slugHint,
   });
   await ensureEditorialRankingForPlan(strapi, syncResult, editorialPlan);
   warnings.push(...(syncResult.warnings || []));

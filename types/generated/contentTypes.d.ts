@@ -1042,6 +1042,7 @@ export interface ApiRankingItemRankingItem extends Struct.CollectionTypeSchema {
       'api::ranking-item.ranking-item'
     > &
       Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
     position: Schema.Attribute.Integer & Schema.Attribute.Required;
     product: Schema.Attribute.Relation<'manyToOne', 'api::product.product'>;
     pros: Schema.Attribute.JSON;

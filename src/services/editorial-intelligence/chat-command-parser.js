@@ -13,6 +13,7 @@ const TEMPLATE_PATTERNS = {
 const INTENT_PATTERNS = {
   comparison: TEMPLATE_PATTERNS.comparison,
   costBenefit: /\bcusto\s*-?\s*beneficio\b|\bcusto\s*-?\s*benefício\b|\bbarato\b|\bbaratos\b|\bbons\s+e\s+baratos\b|\bmais\s+barato\b/i,
+  gamer: /\b(?:gamer|gaming)\b/i,
   useCase: /\bpara\s+([a-z0-9À-ÿ][a-z0-9À-ÿ\s-]{1,40})/i,
   best: /\bmelhores?\b|\btop\b|\branking\b/i,
 };
@@ -80,6 +81,8 @@ const INTENT_WORDS = new Set([
   'baratos',
   'bons',
   'mais',
+  'gamer',
+  'gaming',
 ]);
 const FEMININE_TERMS = new Set([
   'air fryer',
@@ -282,6 +285,10 @@ const getEditorialIntent = (message) => {
     return 'costBenefit';
   }
 
+  if (INTENT_PATTERNS.gamer.test(message)) {
+    return 'gamer';
+  }
+
   if (INTENT_PATTERNS.useCase.test(message)) {
     return 'useCase';
   }
@@ -357,6 +364,10 @@ const buildPreferredSlug = ({ term, editorialIntent, intentModifier }) => {
     return slugify(`melhores ${pluralTerm} custo beneficio`);
   }
 
+  if (editorialIntent === 'gamer') {
+    return slugify(`melhores ${pluralTerm} gamer`);
+  }
+
   if (editorialIntent === 'useCase' && intentModifier) {
     return slugify(`melhores ${pluralTerm} para ${intentModifier}`);
   }
@@ -377,6 +388,10 @@ const buildTitleHint = ({ term, displayLimit, editorialIntent, intentModifier })
 
   if (editorialIntent === 'costBenefit') {
     return `Melhores ${pluralTerm} custo-benefício`;
+  }
+
+  if (editorialIntent === 'gamer') {
+    return `${getArticle(pluralTerm)} ${displayLimit} melhores ${pluralTerm} gamer`;
   }
 
   if (editorialIntent === 'useCase' && intentModifier) {

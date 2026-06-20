@@ -63,6 +63,11 @@ const syncMarketplaceRankingByTerm = async (
     siteId = DEFAULT_SITE_ID,
     limit = DEFAULT_LIMIT,
     displayLimit = DEFAULT_DISPLAY_LIMIT,
+    editorialIntent = 'best',
+    intentModifier,
+    editorialKey,
+    titleHint,
+    slugHint,
   } = {}
 ) => {
   if (!strapi?.db) {
@@ -140,6 +145,12 @@ const syncMarketplaceRankingByTerm = async (
     categoryId: category.id,
     marketplaceRankingId: marketplaceRankingResult.marketplaceRankingId,
     displayLimit,
+    keyword: normalizedTerm,
+    editorialIntent,
+    intentModifier,
+    editorialKey,
+    titleHint,
+    slugHint,
   });
 
   if (productResult.errors?.length) {
@@ -185,6 +196,8 @@ const syncMarketplaceRankingByTerm = async (
       eligibleEntries: editorialResult.eligibleEntries,
       displayLimit: editorialResult.displayLimit,
       displayedEntries: editorialResult.displayedEntries,
+      protectedPublishedPage: editorialResult.protectedPublishedPage,
+      rankingStrategy: editorialResult.rankingStrategy,
     },
     warnings,
     errors,
