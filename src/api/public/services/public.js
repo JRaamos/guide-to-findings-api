@@ -156,6 +156,8 @@ const serializeRanking = (ranking) => {
     title: ranking.title,
     description: ranking.description || null,
     rankingType: ranking.rankingType,
+    editorialIntent: ranking.editorialIntent || null,
+    editorialKey: ranking.editorialKey || null,
     items: sortByPosition(activeItems).map(serializeRankingItem),
   };
 };
@@ -260,6 +262,8 @@ const serializePage = (page, dynamicRelatedPages = null) => {
     slug: page.slug,
     pageType: page.pageType,
     status: page.status,
+    editorialIntent: page.editorialIntent || page.ranking?.editorialIntent || null,
+    editorialKey: page.editorialKey || page.ranking?.editorialKey || null,
     excerpt: page.excerpt || null,
     intro: page.intro || null,
     conclusion: page.conclusion || null,
