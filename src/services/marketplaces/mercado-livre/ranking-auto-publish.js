@@ -21,6 +21,7 @@ const toLegacyResult = (pipelineResult) => ({
   publicUrl: pipelineResult.publication.publicUrl,
   publicEndpointStatus: pipelineResult.publication.publicEndpointStatus,
   sitemapIncluded: pipelineResult.publication.sitemapIncluded,
+  frontendRevalidation: pipelineResult.publication.frontendRevalidation,
   sync: {
     success: pipelineResult.success,
     term: pipelineResult.term,

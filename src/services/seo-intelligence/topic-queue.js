@@ -86,6 +86,13 @@ const serializeTopic = (topic) => {
     sourceTerm: topic.sourceTerm,
     sourceCategoryId: topic.sourceCategoryId,
     sourceCategoryName: topic.sourceCategoryName,
+    discoveryWorkspace: topic.discoveryWorkspace?.id ? {
+      id: topic.discoveryWorkspace.id,
+      documentId: topic.discoveryWorkspace.documentId,
+      name: topic.discoveryWorkspace.name,
+      normalizedName: topic.discoveryWorkspace.normalizedName,
+      status: topic.discoveryWorkspace.status,
+    } : null,
     clusterKey: descriptor.clusterKey,
     editorialKey: descriptor.editorialKey,
     trendScore: Number.isFinite(Number(topic.metadata?.trendScore))
@@ -112,7 +119,7 @@ const serializeTopic = (topic) => {
   };
 };
 
-const buildWhere = ({ status, intent }) => {
+const buildWhere = ({ status, intent, workspaceId }) => {
   const where = {};
 
   if (sanitizeText(status)) {
@@ -121,6 +128,12 @@ const buildWhere = ({ status, intent }) => {
 
   if (sanitizeText(intent)) {
     where.intent = sanitizeText(intent);
+  }
+
+  const normalizedWorkspaceId = parsePositiveInteger(workspaceId, null);
+
+  if (normalizedWorkspaceId) {
+    where.discoveryWorkspace = { id: normalizedWorkspaceId };
   }
 
   return where;
@@ -145,7 +158,7 @@ const listTopics = async (strapiInstance, filters = {}) => {
   const limit = Math.min(parsePositiveInteger(filters.limit, LIST_LIMIT), LIST_LIMIT);
   const topics = await query(app, uid.editorialTopic).findMany({
     where: buildWhere(filters),
-    populate: ['page'],
+    populate: ['page', 'discoveryWorkspace'],
     orderBy: [
       { priority: 'desc' },
       { createdAt: 'desc' },
@@ -174,6 +187,7 @@ const listTopics = async (strapiInstance, filters = {}) => {
       status: sanitizeText(filters.status),
       intent: sanitizeText(filters.intent),
       q: sanitizeText(filters.q),
+      workspaceId: parsePositiveInteger(filters.workspaceId, null),
     },
   };
 };
@@ -190,7 +204,7 @@ const getTopic = async (strapiInstance, id) => {
     where: {
       id: topicId,
     },
-    populate: ['page'],
+    populate: ['page', 'discoveryWorkspace'],
   });
 
   if (!topic) {

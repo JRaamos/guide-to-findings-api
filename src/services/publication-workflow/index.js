@@ -1,5 +1,9 @@
 'use strict';
 
+const {
+  revalidateFrontendPage,
+} = require('../frontend-revalidation/revalidate-frontend');
+
 const uid = {
   page: 'api::page.page',
   seo: 'api::seo.seo',
@@ -609,7 +613,25 @@ const publishPage = async (strapi, id) => {
     });
   }
 
-  return getPage(strapi, page.id);
+  const publishedPage = await getPage(strapi, page.id);
+  const frontendRevalidation = await revalidateFrontendPage({
+    categorySlug: publishedPage.category?.slug,
+    contentSlug: publishedPage.slug,
+    publicUrl: publishedPage.category?.slug && publishedPage.slug
+      ? `/${publishedPage.category.slug}/${publishedPage.slug}`
+      : null,
+  });
+
+  if (!frontendRevalidation.success) {
+    strapi.log.warn(
+      `[Publication Workflow] Frontend revalidation failed for Page ${page.id}: ${frontendRevalidation.error}`
+    );
+  }
+
+  return {
+    ...publishedPage,
+    frontendRevalidation,
+  };
 };
 
 module.exports = {

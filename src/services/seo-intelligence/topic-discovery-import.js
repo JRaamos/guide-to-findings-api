@@ -12,6 +12,11 @@ const {
 const {
   importTrendTopics,
 } = require('./discovery/trend-topic-import');
+const {
+  findOrCreateDiscoveryWorkspace,
+  refreshDiscoveryWorkspaceTotal,
+  serializeWorkspace,
+} = require('./discovery-workspaces');
 
 const VALID_SOURCES = new Set(['templates', 'trends', 'both']);
 const GOOGLE_TRENDS_RATE_LIMIT_WARNING =
@@ -25,10 +30,11 @@ const isGoogleTrendsRateLimit = (error) => {
   return error?.status === 429 || /rate limit|429/i.test(error?.message || '');
 };
 
-const createResult = ({ term, source }) => ({
+const createResult = ({ term, source, workspace }) => ({
   success: true,
   term,
   source,
+  workspace: serializeWorkspace(workspace),
   created: 0,
   updated: 0,
   skipped: 0,
@@ -53,7 +59,7 @@ const mergePersistenceResult = (result, persistence) => {
   }
 };
 
-const importTemplateTopics = async ({ strapi, term }) => {
+const importTemplateTopics = async ({ strapi, term, discoveryWorkspaceId }) => {
   const topics = discoverKeywords({ term });
 
   return persistEditorialTopics({
@@ -61,13 +67,15 @@ const importTemplateTopics = async ({ strapi, term }) => {
     topics,
     sourceTerm: term,
     sourceMarketplace: 'mercadoLivre',
+    discoveryWorkspaceId,
   });
 };
 
-const importGoogleTrendTopics = async ({ strapi, term }) => {
+const importGoogleTrendTopics = async ({ strapi, term, discoveryWorkspaceId }) => {
   const trendResult = await importTrendTopics({
     strapi,
     baseTerm: term,
+    discoveryWorkspaceId,
   });
 
   return {
@@ -113,12 +121,16 @@ const discoverAndImportTopics = async (
   const result = createResult({
     term: normalizedTerm,
     source: normalizedSource,
+    workspace: await findOrCreateDiscoveryWorkspace(strapi, {
+      sourceKeyword: normalizedTerm,
+    }),
   });
 
   if (normalizedSource === 'templates' || normalizedSource === 'both') {
     const persistence = await importTemplateTopics({
       strapi,
       term: normalizedTerm,
+      discoveryWorkspaceId: result.workspace.id,
     });
 
     mergePersistenceResult(result, persistence);
@@ -129,6 +141,7 @@ const discoverAndImportTopics = async (
       const trendImport = await importGoogleTrendTopics({
         strapi,
         term: normalizedTerm,
+        discoveryWorkspaceId: result.workspace.id,
       });
 
       mergePersistenceResult(result, trendImport.persistence);
@@ -149,6 +162,8 @@ const discoverAndImportTopics = async (
   if (result.topics.length > 0) {
     addScoringData(result, await refreshTopicScores(strapi));
   }
+
+  result.workspace = await refreshDiscoveryWorkspaceTotal(strapi, result.workspace.id);
 
   return result;
 };

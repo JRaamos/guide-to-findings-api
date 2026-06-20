@@ -6,6 +6,9 @@ const { buildCommandContext } = require('../../editorial-intelligence/command-co
 const { buildEditorialPlan } = require('../../editorial-intelligence/editorial-plan');
 const { findReusablePage } = require('../../editorial-intelligence/page-reuse-engine');
 const publicationWorkflow = require('../../publication-workflow');
+const {
+  revalidateFrontendPage,
+} = require('../../frontend-revalidation/revalidate-frontend');
 
 const DEFAULT_SITE_ID = 'MLB';
 const MINIMUM_RANKING_ITEMS = 10;
@@ -637,6 +640,32 @@ const verifyPublicAvailability = async (strapi, page) => {
   };
 };
 
+const revalidatePublishedPage = async (strapi, page, publicCheck) => {
+  if (!page || publicCheck?.endpointStatus !== 200 || !publicCheck.publicUrl) {
+    return {
+      attempted: false,
+      success: false,
+      paths: [],
+      tags: [],
+      error: 'Published Page is not available from the public API yet',
+    };
+  }
+
+  const result = await revalidateFrontendPage({
+    categorySlug: page.category?.slug,
+    contentSlug: page.slug,
+    publicUrl: publicCheck.publicUrl,
+  });
+
+  if (!result.success) {
+    strapi.log.warn(
+      `[Marketplace Pipeline] Frontend revalidation failed for Page ${page.id}: ${result.error}`
+    );
+  }
+
+  return result;
+};
+
 const buildCategoryResult = (syncResult) => ({
   marketplaceCategoryId: syncResult.resolvedCategory?.id || null,
   marketplaceCategoryName: syncResult.resolvedCategory?.name || null,
@@ -738,6 +767,12 @@ const buildBaseResult = ({
     publicUrl: null,
     publicEndpointStatus: null,
     sitemapIncluded: false,
+    frontendRevalidation: {
+      attempted: false,
+      success: false,
+      paths: [],
+      tags: [],
+    },
     validationErrors: [],
   },
   warnings,
@@ -775,6 +810,12 @@ const withPublicationResult = (result, publication) => ({
     publicUrl: publication.publicUrl || null,
     publicEndpointStatus: publication.publicEndpointStatus || null,
     sitemapIncluded: Boolean(publication.sitemapIncluded),
+    frontendRevalidation: publication.frontendRevalidation || {
+      attempted: false,
+      success: false,
+      paths: [],
+      tags: [],
+    },
     validationErrors: publication.validationErrors || [],
   },
 });
@@ -796,6 +837,15 @@ const buildReusedPageResult = async (strapi, result, pageReuse) => {
 
   if (page?.status === 'published') {
     const publicCheck = await verifyPublicAvailability(strapi, page);
+    const frontendRevalidation = await revalidatePublishedPage(strapi, page, publicCheck);
+
+    if (!frontendRevalidation.success) {
+      result.warnings.push({
+        step: 'frontend-revalidation',
+        message: frontendRevalidation.error,
+        pageId: page.id,
+      });
+    }
 
     return withPublicationResult(baseResult, {
       attempted: false,
@@ -804,6 +854,7 @@ const buildReusedPageResult = async (strapi, result, pageReuse) => {
       publicUrl: publicCheck.publicUrl,
       publicEndpointStatus: publicCheck.endpointStatus,
       sitemapIncluded: publicCheck.sitemapIncluded,
+      frontendRevalidation,
       validationErrors: [],
     });
   }
@@ -967,6 +1018,15 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
 
     const publishedPage = await getPage(strapi, preGeneration.ranking.page.id);
     const publicCheck = await verifyPublicAvailability(strapi, publishedPage);
+    const frontendRevalidation = await revalidatePublishedPage(strapi, publishedPage, publicCheck);
+
+    if (!frontendRevalidation.success) {
+      warnings.push({
+        step: 'frontend-revalidation',
+        message: frontendRevalidation.error,
+        pageId: publishedPage.id,
+      });
+    }
     await annotateEditorialEntities(strapi, {
       rankingId: preGeneration.ranking.id,
       pageId: publishedPage.id,
@@ -988,6 +1048,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
         publicUrl: publicCheck.publicUrl,
         publicEndpointStatus: publicCheck.endpointStatus,
         sitemapIncluded: publicCheck.sitemapIncluded,
+        frontendRevalidation,
         validationErrors: [],
       }
     );
@@ -1090,6 +1151,7 @@ const runMarketplacePipeline = async (strapiOrOptions = {}, maybeOptions) => {
     publicUrl: publicCheck.publicUrl,
     publicEndpointStatus: publicCheck.endpointStatus,
     sitemapIncluded: publicCheck.sitemapIncluded,
+    frontendRevalidation: published.frontendRevalidation,
     validationErrors: [],
   });
 };

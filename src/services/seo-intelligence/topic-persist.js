@@ -78,6 +78,7 @@ const findByNormalizedKeyword = (strapi, normalizedKeyword) => {
     where: {
       normalizedKeyword,
     },
+    populate: ['discoveryWorkspace'],
   });
 };
 
@@ -87,6 +88,7 @@ const buildCreateData = ({
   sourceMarketplace,
   sourceCategoryId,
   sourceCategoryName,
+  discoveryWorkspaceId,
 }) => ({
   keyword: topic.keyword,
   normalizedKeyword: topic.normalizedKeyword,
@@ -99,6 +101,7 @@ const buildCreateData = ({
   sourceTerm,
   sourceCategoryId,
   sourceCategoryName,
+  ...(discoveryWorkspaceId ? { discoveryWorkspace: discoveryWorkspaceId } : {}),
   metadata: topic.metadata,
   generatedAt: new Date().toISOString(),
 });
@@ -109,6 +112,7 @@ const buildSafeUpdateData = ({
   sourceTerm,
   sourceCategoryId,
   sourceCategoryName,
+  discoveryWorkspaceId,
 }) => {
   const data = {};
 
@@ -134,6 +138,10 @@ const buildSafeUpdateData = ({
     data.sourceCategoryName = sourceCategoryName;
   }
 
+  if (!existing.discoveryWorkspace?.id && discoveryWorkspaceId) {
+    data.discoveryWorkspace = discoveryWorkspaceId;
+  }
+
   return data;
 };
 
@@ -155,6 +163,7 @@ const persistEditorialTopics = async ({
   sourceMarketplace = DEFAULT_SOURCE_MARKETPLACE,
   sourceCategoryId = null,
   sourceCategoryName = null,
+  discoveryWorkspaceId = null,
   strapi: strapiInstance,
 } = {}) => {
   const app = getStrapi(strapiInstance);
@@ -187,6 +196,7 @@ const persistEditorialTopics = async ({
           sourceMarketplace: normalizedSourceMarketplace,
           sourceCategoryId: normalizedSourceCategoryId,
           sourceCategoryName: normalizedSourceCategoryName,
+          discoveryWorkspaceId,
         }),
       });
 
@@ -201,6 +211,7 @@ const persistEditorialTopics = async ({
       sourceTerm: normalizedSourceTerm,
       sourceCategoryId: normalizedSourceCategoryId,
       sourceCategoryName: normalizedSourceCategoryName,
+      discoveryWorkspaceId,
     });
 
     if (!Object.keys(safeUpdateData).length) {

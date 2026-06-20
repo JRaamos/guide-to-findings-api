@@ -23,6 +23,7 @@ const dedupeTopics = (topics) => {
 const importTrendTopics = async ({
   baseTerm,
   maxResults = DEFAULT_MAX_RESULTS,
+  discoveryWorkspaceId = null,
   strapi,
   ...discoveryOptions
 } = {}) => {
@@ -60,6 +61,7 @@ const importTrendTopics = async ({
     topics,
     sourceTerm: demand.term,
     sourceMarketplace: demand.source,
+    discoveryWorkspaceId,
   });
 
   return {

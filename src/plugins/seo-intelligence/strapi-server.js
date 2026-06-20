@@ -5,12 +5,23 @@ const topicClusters = require('../../services/seo-intelligence/topic-clusters');
 const {
   discoverAndImportTopics,
 } = require('../../services/seo-intelligence/topic-discovery-import');
+const {
+  listDiscoveryWorkspaces,
+} = require('../../services/seo-intelligence/discovery-workspaces');
 
 module.exports = () => ({
   routes: {
     admin: {
       type: 'admin',
       routes: [
+        {
+          method: 'GET',
+          path: '/workspaces',
+          handler: 'workspaces.find',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
         {
           method: 'GET',
           path: '/topics',
@@ -79,6 +90,26 @@ module.exports = () => ({
     },
   },
   controllers: {
+    workspaces: {
+      async find(ctx) {
+        try {
+          const workspaces = await listDiscoveryWorkspaces(strapi, {
+            includeArchived: ctx.query?.includeArchived === 'true',
+          });
+
+          ctx.body = {
+            success: true,
+            workspaces,
+            count: workspaces.length,
+          };
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] List workspaces failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
+    },
+
     clusters: {
       async find(ctx) {
         try {

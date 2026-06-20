@@ -71,6 +71,12 @@
     "sourceCategoryName": {
       "type": "string"
     },
+    "discoveryWorkspace": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::discovery-workspace.discovery-workspace",
+      "inversedBy": "topics"
+    },
     "page": {
       "type": "relation",
       "relation": "manyToOne",

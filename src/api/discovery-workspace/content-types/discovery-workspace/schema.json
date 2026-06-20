@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "discovery_workspaces",
+  "info": {
+    "singularName": "discovery-workspace",
+    "pluralName": "discovery-workspaces",
+    "displayName": "DiscoveryWorkspace",
+    "description": "Groups SEO Intelligence topics by editorial discovery research."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "normalizedName": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active"
+    },
+    "sourceKeyword": {
+      "type": "string",
+      "required": true
+    },
+    "totalTopics": {
+      "type": "integer",
+      "default": 0,
+      "min": 0
+    },
+    "topics": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::editorial-topic.editorial-topic",
+      "mappedBy": "discoveryWorkspace"
+    }
+  }
+}

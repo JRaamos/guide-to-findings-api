@@ -632,6 +632,54 @@ export interface ApiClickEventClickEvent extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiDiscoveryWorkspaceDiscoveryWorkspace
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'discovery_workspaces';
+  info: {
+    description: 'Groups SEO Intelligence topics by editorial discovery research.';
+    displayName: 'DiscoveryWorkspace';
+    pluralName: 'discovery-workspaces';
+    singularName: 'discovery-workspace';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::discovery-workspace.discovery-workspace'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String & Schema.Attribute.Required;
+    normalizedName: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    publishedAt: Schema.Attribute.DateTime;
+    sourceKeyword: Schema.Attribute.String & Schema.Attribute.Required;
+    status: Schema.Attribute.Enumeration<['active', 'archived']> &
+      Schema.Attribute.DefaultTo<'active'>;
+    topics: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::editorial-topic.editorial-topic'
+    >;
+    totalTopics: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiEditorialTopicEditorialTopic
   extends Struct.CollectionTypeSchema {
   collectionName: 'editorial_topics';
@@ -649,6 +697,10 @@ export interface ApiEditorialTopicEditorialTopic
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    discoveryWorkspace: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::discovery-workspace.discovery-workspace'
+    >;
     generatedAt: Schema.Attribute.DateTime;
     intent: Schema.Attribute.Enumeration<
       ['best', 'costBenefit', 'comparison', 'buyingGuide', 'useCase']
@@ -1719,6 +1771,7 @@ declare module '@strapi/strapi' {
       'api::ai-generation-log.ai-generation-log': ApiAiGenerationLogAiGenerationLog;
       'api::category.category': ApiCategoryCategory;
       'api::click-event.click-event': ApiClickEventClickEvent;
+      'api::discovery-workspace.discovery-workspace': ApiDiscoveryWorkspaceDiscoveryWorkspace;
       'api::editorial-topic.editorial-topic': ApiEditorialTopicEditorialTopic;
       'api::faq.faq': ApiFaqFaq;
       'api::marketplace-ranking-entry.marketplace-ranking-entry': ApiMarketplaceRankingEntryMarketplaceRankingEntry;

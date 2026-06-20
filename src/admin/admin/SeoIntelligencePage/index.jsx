@@ -15,6 +15,7 @@ import {
 import { useFetchClient } from '@strapi/strapi/admin';
 
 const TOPICS_ENDPOINT = '/seo-intelligence/topics';
+const WORKSPACES_ENDPOINT = '/seo-intelligence/workspaces';
 const CLUSTERS_ENDPOINT = '/seo-intelligence/clusters';
 const DISCOVER_TOPICS_ENDPOINT = '/seo-intelligence/topics/discover';
 const DEFAULT_CLUSTER_LIMIT = 50;
@@ -164,7 +165,7 @@ const TopicScoreBadge = ({ score }) => {
   );
 };
 
-const buildTopicsUrl = ({ status, intent, q }) => {
+const buildTopicsUrl = ({ status, intent, q, workspaceId }) => {
   const searchParams = new URLSearchParams();
 
   if (status) {
@@ -177,6 +178,10 @@ const buildTopicsUrl = ({ status, intent, q }) => {
 
   if (q) {
     searchParams.set('q', q);
+  }
+
+  if (workspaceId) {
+    searchParams.set('workspaceId', workspaceId);
   }
 
   const queryString = searchParams.toString();
@@ -571,15 +576,44 @@ const ClusterCard = ({ cluster }) => {
   );
 };
 
+const WorkspaceRow = ({ workspace, onOpen }) => (
+  <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+    <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+      <Flex direction="column" alignItems="flex-start" gap={1} minWidth="220px">
+        <Typography variant="beta">{workspace.name}</Typography>
+        <Typography variant="pi" textColor="neutral600">
+          Termo: {workspace.sourceKeyword} | Atualizado em {formatDate(workspace.updatedAt)}
+        </Typography>
+      </Flex>
+      <Flex gap={3} wrap="wrap">
+        <Badge active>{workspace.totalTopics} topicos</Badge>
+        <Badge>{workspace.pendingTopics} pending</Badge>
+        <Badge active={Boolean(workspace.approvedTopics)}>
+          {workspace.approvedTopics} aprovados
+        </Badge>
+        <Badge active={Boolean(workspace.publishedTopics)}>
+          {workspace.publishedTopics} publicados
+        </Badge>
+      </Flex>
+      <Button type="button" variant="secondary" onClick={() => onOpen(workspace)}>
+        Abrir topics
+      </Button>
+    </Flex>
+  </Box>
+);
+
 const SeoIntelligencePage = () => {
   const { get, post } = useFetchClient();
-  const [activeSection, setActiveSection] = useState('topics');
+  const [activeSection, setActiveSection] = useState('workspaces');
+  const [workspaces, setWorkspaces] = useState([]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState(null);
   const [topics, setTopics] = useState([]);
   const [clusters, setClusters] = useState([]);
   const [status, setStatus] = useState('pending');
   const [intent, setIntent] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(false);
   const [isClustersLoading, setIsClustersLoading] = useState(false);
   const [updatingTopicId, setUpdatingTopicId] = useState(null);
   const [generatingTopicId, setGeneratingTopicId] = useState(null);
@@ -610,18 +644,42 @@ const SeoIntelligencePage = () => {
     setBulkGenerationResult(null);
   };
 
-  const loadTopics = async () => {
+  const loadTopics = async ({
+    statusValue = status,
+    intentValue = intent,
+    searchValue = search,
+    workspaceId = selectedWorkspace?.id,
+  } = {}) => {
     setIsLoading(true);
     resetFeedback();
 
     try {
-      const response = await get(buildTopicsUrl({ status, intent, q: search.trim() }));
+      const response = await get(buildTopicsUrl({
+        status: statusValue,
+        intent: intentValue,
+        q: searchValue.trim(),
+        workspaceId,
+      }));
 
       setTopics(Array.isArray(response.data?.topics) ? response.data.topics : []);
     } catch (error) {
       setErrorMessage('Nao foi possivel carregar a fila de topicos.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadWorkspaces = async () => {
+    setIsWorkspacesLoading(true);
+
+    try {
+      const response = await get(WORKSPACES_ENDPOINT);
+
+      setWorkspaces(Array.isArray(response.data?.workspaces) ? response.data.workspaces : []);
+    } catch (error) {
+      setErrorMessage('Nao foi possivel carregar as pesquisas editoriais.');
+    } finally {
+      setIsWorkspacesLoading(false);
     }
   };
 
@@ -641,7 +699,7 @@ const SeoIntelligencePage = () => {
   };
 
   useEffect(() => {
-    loadTopics();
+    loadWorkspaces();
   }, []);
 
   useEffect(() => {
@@ -653,6 +711,34 @@ const SeoIntelligencePage = () => {
   const updateTopicInList = (nextTopic) => {
     setTopics((currentTopics) => {
       return currentTopics.map((topic) => (topic.id === nextTopic.id ? nextTopic : topic));
+    });
+  };
+
+  const openWorkspace = async (workspace) => {
+    setSelectedWorkspace(workspace);
+    setStatus('');
+    setIntent('');
+    setSearch('');
+    setActiveSection('topics');
+    await loadTopics({
+      statusValue: '',
+      intentValue: '',
+      searchValue: '',
+      workspaceId: workspace.id,
+    });
+  };
+
+  const openAllTopics = async () => {
+    setSelectedWorkspace(null);
+    setStatus('');
+    setIntent('');
+    setSearch('');
+    setActiveSection('topics');
+    await loadTopics({
+      statusValue: '',
+      intentValue: '',
+      searchValue: '',
+      workspaceId: null,
     });
   };
 
@@ -679,6 +765,7 @@ const SeoIntelligencePage = () => {
       } else {
         setSuccessMessage(response.data?.reason || 'Nenhuma alteracao aplicada.');
       }
+      await loadWorkspaces();
     } catch (error) {
       setErrorMessage(error.response?.data?.error?.message || 'Nao foi possivel atualizar o topic.');
     } finally {
@@ -776,15 +863,16 @@ const SeoIntelligencePage = () => {
       });
       const result = response.data || {};
 
-      await loadTopics();
+      await loadWorkspaces();
       setDiscoveryResult({
         created: result.created || 0,
         updated: result.updated || 0,
         skipped: result.skipped || 0,
         scored: result.scored || 0,
         warnings: Array.isArray(result.warnings) ? result.warnings : [],
+        workspace: result.workspace || null,
       });
-      setSuccessMessage('Descoberta concluida e fila de topicos atualizada.');
+      setSuccessMessage('Descoberta concluida e pesquisa editorial atualizada.');
     } catch (error) {
       const status = error.response?.status || error.response?.data?.error?.status;
       const message = status === 429
@@ -811,17 +899,27 @@ const SeoIntelligencePage = () => {
               SEO Intelligence
             </Typography>
             <Typography variant="epsilon" textColor="neutral600">
-              Fila de topicos editoriais descobertos para revisao.
+              Pesquisas editoriais organizadas por termo de descoberta.
             </Typography>
           </Flex>
 
           <Flex gap={2} wrap="wrap">
             <Button
               type="button"
-              variant={activeSection === 'topics' ? undefined : 'secondary'}
-              onClick={() => setActiveSection('topics')}
+              variant={activeSection === 'workspaces' ? undefined : 'secondary'}
+              onClick={() => {
+                setActiveSection('workspaces');
+                loadWorkspaces();
+              }}
             >
-              Topics
+              Pesquisas
+            </Button>
+            <Button
+              type="button"
+              variant={activeSection === 'topics' && !selectedWorkspace ? undefined : 'secondary'}
+              onClick={openAllTopics}
+            >
+              Todos os topics
             </Button>
             <Button
               type="button"
@@ -925,7 +1023,7 @@ const SeoIntelligencePage = () => {
             </Box>
           ) : null}
 
-          {activeSection === 'topics' ? (
+          {activeSection === 'workspaces' ? (
             <>
               <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
                 <form onSubmit={handleDiscoverTopics}>
@@ -969,6 +1067,11 @@ const SeoIntelligencePage = () => {
 
                 {discoveryResult ? (
                   <Flex direction="column" alignItems="stretch" gap={3} paddingTop={5}>
+                    {discoveryResult.workspace ? (
+                      <Typography fontWeight="bold">
+                        Pesquisa: {discoveryResult.workspace.name}
+                      </Typography>
+                    ) : null}
                     <Flex gap={3} wrap="wrap">
                       <Badge active={Boolean(discoveryResult.created)}>
                         Criados {discoveryResult.created}
@@ -995,6 +1098,58 @@ const SeoIntelligencePage = () => {
                   </Flex>
                 ) : null}
               </Box>
+
+              <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+                <Flex direction="column" alignItems="flex-start" gap={1}>
+                  <Typography variant="beta">Pesquisas recentes</Typography>
+                  <Typography textColor="neutral600">
+                    Abra uma pesquisa para revisar somente os topics daquele termo.
+                  </Typography>
+                </Flex>
+                <Button type="button" variant="tertiary" loading={isWorkspacesLoading} onClick={loadWorkspaces}>
+                  Atualizar pesquisas
+                </Button>
+              </Flex>
+
+              {isWorkspacesLoading ? (
+                <Flex justifyContent="center" padding={8}>
+                  <Loader>Carregando pesquisas</Loader>
+                </Flex>
+              ) : null}
+
+              {!isWorkspacesLoading && !workspaces.length ? (
+                <Box background="neutral0" borderColor="neutral150" hasRadius padding={6}>
+                  <Typography>Nenhuma pesquisa encontrada. Descubra o primeiro termo acima.</Typography>
+                </Box>
+              ) : null}
+
+              {!isWorkspacesLoading ? (
+                <Flex direction="column" alignItems="stretch" gap={3}>
+                  {workspaces.map((workspace) => (
+                    <WorkspaceRow key={workspace.id} workspace={workspace} onOpen={openWorkspace} />
+                  ))}
+                </Flex>
+              ) : null}
+            </>
+          ) : activeSection === 'topics' ? (
+            <>
+              <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+                <Flex direction="column" alignItems="flex-start" gap={1}>
+                  <Typography variant="beta">
+                    {selectedWorkspace ? selectedWorkspace.name : 'Todos os topics'}
+                  </Typography>
+                  <Typography textColor="neutral600">
+                    {selectedWorkspace
+                      ? `Topics descobertos a partir de ${selectedWorkspace.sourceKeyword}.`
+                      : 'Visao global para auditoria de todos os topics.'}
+                  </Typography>
+                </Flex>
+                {selectedWorkspace ? (
+                  <Button type="button" variant="tertiary" onClick={() => setActiveSection('workspaces')}>
+                    Voltar para pesquisas
+                  </Button>
+                ) : null}
+              </Flex>
 
               <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
                 <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">

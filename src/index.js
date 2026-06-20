@@ -1,6 +1,9 @@
 'use strict';
 
 const { exportRolesPermissions, updateRolesPermissions } = require("./functions/roles");
+const {
+  backfillDiscoveryWorkspaces,
+} = require('./services/seo-intelligence/discovery-workspaces');
 
 module.exports = {
   /**
@@ -18,8 +21,22 @@ module.exports = {
    * This gives you an opportunity to set up your data model,
    * run jobs, or perform some special logic.
    */
-  bootstrap({ strapi }) {
-    checkExportRoles()
+  async bootstrap({ strapi }) {
+    await checkExportRoles();
+
+    try {
+      const result = await backfillDiscoveryWorkspaces(strapi);
+
+      if (result.linkedTopics > 0) {
+        strapi.log.info(
+          `[SEO Intelligence] Discovery workspace backfill linked ${result.linkedTopics} topics`
+        );
+      }
+    } catch (error) {
+      strapi.log.warn(
+        `[SEO Intelligence] Discovery workspace backfill skipped: ${error.message}`
+      );
+    }
   },
 };
 
