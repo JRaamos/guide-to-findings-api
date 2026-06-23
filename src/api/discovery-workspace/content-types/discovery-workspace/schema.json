@@ -21,6 +21,10 @@
       "required": true,
       "unique": true
     },
+    "workspaceKey": {
+      "type": "string",
+      "unique": true
+    },
     "status": {
       "type": "enumeration",
       "enum": [
@@ -37,6 +41,9 @@
       "type": "integer",
       "default": 0,
       "min": 0
+    },
+    "lastDiscoveryAt": {
+      "type": "datetime"
     },
     "topics": {
       "type": "relation",

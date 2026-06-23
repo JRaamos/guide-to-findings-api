@@ -6,6 +6,7 @@ const {
   discoverAndImportTopics,
 } = require('../../services/seo-intelligence/topic-discovery-import');
 const {
+  getDiscoveryWorkspaceDetail,
   listDiscoveryWorkspaces,
 } = require('../../services/seo-intelligence/discovery-workspaces');
 
@@ -18,6 +19,14 @@ module.exports = () => ({
           method: 'GET',
           path: '/workspaces',
           handler: 'workspaces.find',
+          config: {
+            policies: ['admin::isAuthenticatedAdmin'],
+          },
+        },
+        {
+          method: 'GET',
+          path: '/workspaces/:id',
+          handler: 'workspaces.findOne',
           config: {
             policies: ['admin::isAuthenticatedAdmin'],
           },
@@ -108,6 +117,18 @@ module.exports = () => ({
           return ctx.badRequest(error.message);
         }
       },
+      async findOne(ctx) {
+        try {
+          ctx.body = {
+            success: true,
+            ...(await getDiscoveryWorkspaceDetail(strapi, ctx.params.id)),
+          };
+        } catch (error) {
+          strapi.log.warn(`[SEO Intelligence] Workspace detail failed: ${error.message}`);
+
+          return ctx.badRequest(error.message);
+        }
+      },
     },
 
     clusters: {
@@ -116,6 +137,7 @@ module.exports = () => ({
           const clusters = await topicClusters.getTopicClusters(strapi, {
             limit: ctx.query?.limit,
             includePages: true,
+            workspaceId: ctx.query?.workspaceId,
           });
 
           ctx.body = {

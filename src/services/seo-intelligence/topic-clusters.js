@@ -323,8 +323,9 @@ const addPageToClusters = (clusters, seenPageIds, page) => {
   cluster.publishedPageCount += 1;
 };
 
-const findTopics = (strapi) => query(strapi, uid.editorialTopic).findMany({
-  populate: ['page'],
+const findTopics = (strapi, workspaceId) => query(strapi, uid.editorialTopic).findMany({
+  where: workspaceId ? { discoveryWorkspace: { id: workspaceId } } : {},
+  populate: ['discoveryWorkspace', 'page'],
   orderBy: [
     { priority: 'desc' },
     { createdAt: 'desc' },
@@ -365,10 +366,11 @@ const getTopicClusters = async (strapiOrOptions = {}, maybeOptions) => {
   const { strapi, options } = resolveArgs(strapiOrOptions, maybeOptions);
   const limit = normalizeLimit(options.limit);
   const includePages = normalizeBoolean(options.includePages, true);
+  const workspaceId = parsePositiveInteger(options.workspaceId, null);
   const clusters = new Map();
   const seenTopicIds = new Set();
   const seenPageIds = new Set();
-  const topics = await findTopics(strapi);
+  const topics = await findTopics(strapi, workspaceId);
 
   for (const topic of topics) {
     addTopicToClusters(clusters, seenTopicIds, topic);
@@ -376,8 +378,15 @@ const getTopicClusters = async (strapiOrOptions = {}, maybeOptions) => {
 
   if (includePages) {
     const pages = await findPublishedPages(strapi);
+    const workspaceClusterKeys = workspaceId ? new Set(clusters.keys()) : null;
 
     for (const page of pages) {
+      const pageClusterKey = singularizeEditorialTerm(getPageClusterKey(page)) || normalizeKeyText(getPageClusterKey(page));
+
+      if (workspaceClusterKeys && !workspaceClusterKeys.has(pageClusterKey)) {
+        continue;
+      }
+
       addPageToClusters(clusters, seenPageIds, page);
     }
   }
@@ -390,5 +399,7 @@ const getTopicClusters = async (strapiOrOptions = {}, maybeOptions) => {
 };
 
 module.exports = {
+  getPageClusterKey,
+  getTopicClusterKey,
   getTopicClusters,
 };

@@ -189,11 +189,15 @@ const buildTopicsUrl = ({ status, intent, q, workspaceId }) => {
   return queryString ? `${TOPICS_ENDPOINT}?${queryString}` : TOPICS_ENDPOINT;
 };
 
-const buildClustersUrl = ({ limit = DEFAULT_CLUSTER_LIMIT } = {}) => {
+const buildClustersUrl = ({ limit = DEFAULT_CLUSTER_LIMIT, workspaceId } = {}) => {
   const searchParams = new URLSearchParams();
 
   if (limit) {
     searchParams.set('limit', limit);
+  }
+
+  if (workspaceId) {
+    searchParams.set('workspaceId', workspaceId);
   }
 
   const queryString = searchParams.toString();
@@ -202,6 +206,11 @@ const buildClustersUrl = ({ limit = DEFAULT_CLUSTER_LIMIT } = {}) => {
 };
 
 const getCount = (value) => Number(value) || 0;
+
+const formatScore = (value) => new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+}).format(Number(value) || 0);
 
 const buildSuggestedHubUrl = (suggestedHub) => {
   if (!suggestedHub?.slug) {
@@ -582,13 +591,124 @@ const ClusterCard = ({ cluster }) => {
   );
 };
 
+const Metric = ({ label, value, detail }) => (
+  <Box minWidth="120px" flex="1 1 120px">
+    <Typography variant="sigma" textColor="neutral600">{label}</Typography>
+    <Typography variant="beta">{value}</Typography>
+    {detail ? <Typography variant="pi" textColor="neutral600">{detail}</Typography> : null}
+  </Box>
+);
+
+const WorkspaceMetrics = ({ workspace }) => (
+  <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+    <Flex direction="column" alignItems="stretch" gap={4}>
+      <Flex justifyContent="space-between" alignItems="flex-start" gap={4} wrap="wrap">
+        <Box>
+          <Typography variant="beta">Visao operacional</Typography>
+          <Typography variant="pi" textColor="neutral600">
+            Chave canonica: {workspace.workspaceKey || 'n/a'} | Ultima descoberta: {formatDate(workspace.lastDiscoveryAt)}
+          </Typography>
+        </Box>
+        <Badge active>{workspace.totalPages || 0} pages relacionadas</Badge>
+      </Flex>
+      <Flex gap={5} wrap="wrap">
+        <Metric label="Topics" value={getCount(workspace.totalTopics)} detail={`${getCount(workspace.pendingTopics)} pending`} />
+        <Metric label="Aprovados" value={getCount(workspace.approvedTopics)} />
+        <Metric label="Publicados" value={getCount(workspace.publishedTopics)} />
+        <Metric label="Rejeitados" value={getCount(workspace.rejectedTopics)} />
+        <Metric label="Score medio" value={formatScore(workspace.averageTopicScore)} />
+        <Metric label="Intents distintas" value={getCount(workspace.distinctIntents)} />
+      </Flex>
+    </Flex>
+  </Box>
+);
+
+const CoverageDashboard = ({ coverage }) => {
+  const coveredIntents = Array.isArray(coverage?.coveredIntents) ? coverage.coveredIntents : [];
+  const missingIntents = Array.isArray(coverage?.missingIntents) ? coverage.missingIntents : [];
+
+  return (
+    <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+      <Flex direction="column" alignItems="stretch" gap={4}>
+        <Box>
+          <Typography variant="beta">Cobertura editorial</Typography>
+          <Typography variant="pi" textColor="neutral600">
+            Diagnostico baseado somente nas pages publicadas relacionadas. Nenhuma page e gerada por esta analise.
+          </Typography>
+        </Box>
+        <Flex alignItems="flex-start" gap={8} wrap="wrap">
+          <Box minWidth="260px" flex="1 1 320px">
+            <Typography variant="sigma" textColor="neutral600">Intents cobertas</Typography>
+            <Flex gap={2} wrap="wrap" paddingTop={2}>
+              {coveredIntents.length ? coveredIntents.map((intent) => (
+                <Badge key={intent.key} active>{intent.label} | {intent.pageCount}</Badge>
+              )) : <Typography textColor="neutral600">Nenhuma cobertura publicada.</Typography>}
+            </Flex>
+          </Box>
+          <Box minWidth="260px" flex="1 1 320px">
+            <Typography variant="sigma" textColor="neutral600">Intents faltantes</Typography>
+            <Flex gap={2} wrap="wrap" paddingTop={2}>
+              {missingIntents.map((intent) => <Badge key={intent.key}>{intent.label}</Badge>)}
+            </Flex>
+          </Box>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+};
+
+const WorkspacePages = ({ pages = [] }) => (
+  <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
+    <Flex direction="column" alignItems="stretch" gap={3}>
+      <Box>
+        <Typography variant="beta">Pages publicadas relacionadas</Typography>
+        <Typography variant="pi" textColor="neutral600">
+          Pages encontradas nos mesmos clusters editoriais deste workspace.
+        </Typography>
+      </Box>
+      {pages.length ? pages.map((page) => (
+        <Flex key={page.id} justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
+          <Box>
+            <Typography fontWeight="bold">{page.title}</Typography>
+            <Typography variant="pi" textColor="neutral600">/{page.categorySlug ? `${page.categorySlug}/` : ''}{page.slug}</Typography>
+          </Box>
+          <Badge active>{INTENT_LABELS[page.editorialIntent] || page.editorialIntent || 'best'}</Badge>
+        </Flex>
+      )) : <Typography textColor="neutral600">Nenhuma page publicada relacionada.</Typography>}
+    </Flex>
+  </Box>
+);
+
+const WorkspaceContext = ({ workspace, coverage, pages, activeSection, onSectionChange, onClose }) => (
+  <Flex direction="column" alignItems="stretch" gap={4}>
+    <Flex justifyContent="space-between" alignItems="flex-start" gap={4} wrap="wrap">
+      <Box>
+        <Typography variant="alpha">{workspace.name}</Typography>
+        <Typography textColor="neutral600">Pesquisa canonica para {workspace.sourceKeyword}.</Typography>
+      </Box>
+      <Button type="button" variant="tertiary" onClick={onClose}>Voltar para pesquisas</Button>
+    </Flex>
+    <Flex gap={2} wrap="wrap">
+      <Button type="button" variant={activeSection === 'topics' ? undefined : 'secondary'} onClick={() => onSectionChange('topics')}>
+        Topics
+      </Button>
+      <Button type="button" variant={activeSection === 'clusters' ? undefined : 'secondary'} onClick={() => onSectionChange('clusters')}>
+        Clusters relacionados
+      </Button>
+    </Flex>
+    <WorkspaceMetrics workspace={workspace} />
+    <CoverageDashboard coverage={coverage} />
+    <WorkspacePages pages={pages} />
+  </Flex>
+);
+
 const WorkspaceRow = ({ workspace, onOpen }) => (
   <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
     <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
       <Flex direction="column" alignItems="flex-start" gap={1} minWidth="220px">
         <Typography variant="beta">{workspace.name}</Typography>
         <Typography variant="pi" textColor="neutral600">
-          Termo: {workspace.sourceKeyword} | Atualizado em {formatDate(workspace.updatedAt)}
+          {workspace.workspaceKey} | Descoberta em {formatDate(workspace.lastDiscoveryAt)}
         </Typography>
       </Flex>
       <Flex gap={3} wrap="wrap">
@@ -600,9 +720,11 @@ const WorkspaceRow = ({ workspace, onOpen }) => (
         <Badge active={Boolean(workspace.publishedTopics)}>
           {workspace.publishedTopics} publicados
         </Badge>
+        <Badge>{workspace.totalPages} pages</Badge>
+        <Badge>score medio {formatScore(workspace.averageTopicScore)}</Badge>
       </Flex>
       <Button type="button" variant="secondary" onClick={() => onOpen(workspace)}>
-        Abrir topics
+        Abrir workspace
       </Button>
     </Flex>
   </Box>
@@ -613,6 +735,8 @@ const SeoIntelligencePage = () => {
   const [activeSection, setActiveSection] = useState('workspaces');
   const [workspaces, setWorkspaces] = useState([]);
   const [selectedWorkspace, setSelectedWorkspace] = useState(null);
+  const [workspaceCoverage, setWorkspaceCoverage] = useState(null);
+  const [workspacePages, setWorkspacePages] = useState([]);
   const [topics, setTopics] = useState([]);
   const [clusters, setClusters] = useState([]);
   const [status, setStatus] = useState('pending');
@@ -689,12 +813,12 @@ const SeoIntelligencePage = () => {
     }
   };
 
-  const loadClusters = async () => {
+  const loadClusters = async (workspaceId = selectedWorkspace?.id) => {
     setIsClustersLoading(true);
     resetFeedback();
 
     try {
-      const response = await get(buildClustersUrl());
+      const response = await get(buildClustersUrl({ workspaceId }));
 
       setClusters(Array.isArray(response.data?.clusters) ? response.data.clusters : []);
     } catch (error) {
@@ -710,9 +834,9 @@ const SeoIntelligencePage = () => {
 
   useEffect(() => {
     if (activeSection === 'clusters' && !clusters.length) {
-      loadClusters();
+      loadClusters(selectedWorkspace?.id);
     }
-  }, [activeSection]);
+  }, [activeSection, selectedWorkspace?.id]);
 
   const updateTopicInList = (nextTopic) => {
     setTopics((currentTopics) => {
@@ -722,20 +846,41 @@ const SeoIntelligencePage = () => {
 
   const openWorkspace = async (workspace) => {
     setSelectedWorkspace(workspace);
+    setWorkspaceCoverage(workspace.coverage || null);
+    setWorkspacePages([]);
+    setClusters([]);
     setStatus('');
     setIntent('');
     setSearch('');
     setActiveSection('topics');
-    await loadTopics({
-      statusValue: '',
-      intentValue: '',
-      searchValue: '',
-      workspaceId: workspace.id,
-    });
+    resetFeedback();
+
+    try {
+      const [detailResponse] = await Promise.all([
+        get(`${WORKSPACES_ENDPOINT}/${workspace.id}`),
+        loadTopics({
+          statusValue: '',
+          intentValue: '',
+          searchValue: '',
+          workspaceId: workspace.id,
+        }),
+      ]);
+      const detail = detailResponse.data || {};
+
+      setSelectedWorkspace(detail.workspace || workspace);
+      setWorkspaceCoverage(detail.coverage || detail.workspace?.coverage || null);
+      setWorkspacePages(Array.isArray(detail.pages) ? detail.pages : []);
+      setClusters(Array.isArray(detail.clusters) ? detail.clusters : []);
+    } catch (error) {
+      setErrorMessage('Nao foi possivel carregar o detalhe do workspace.');
+    }
   };
 
   const openAllTopics = async () => {
     setSelectedWorkspace(null);
+    setWorkspaceCoverage(null);
+    setWorkspacePages([]);
+    setClusters([]);
     setStatus('');
     setIntent('');
     setSearch('');
@@ -746,6 +891,23 @@ const SeoIntelligencePage = () => {
       searchValue: '',
       workspaceId: null,
     });
+  };
+
+  const closeWorkspace = () => {
+    setSelectedWorkspace(null);
+    setWorkspaceCoverage(null);
+    setWorkspacePages([]);
+    setClusters([]);
+    setActiveSection('workspaces');
+    loadWorkspaces();
+  };
+
+  const openWorkspaceSection = (section) => {
+    setActiveSection(section);
+
+    if (section === 'clusters' && selectedWorkspace) {
+      loadClusters(selectedWorkspace.id);
+    }
   };
 
   const handleAction = async (topic, action) => {
@@ -914,6 +1076,10 @@ const SeoIntelligencePage = () => {
               type="button"
               variant={activeSection === 'workspaces' ? undefined : 'secondary'}
               onClick={() => {
+                setSelectedWorkspace(null);
+                setWorkspaceCoverage(null);
+                setWorkspacePages([]);
+                setClusters([]);
                 setActiveSection('workspaces');
                 loadWorkspaces();
               }}
@@ -930,11 +1096,28 @@ const SeoIntelligencePage = () => {
             <Button
               type="button"
               variant={activeSection === 'clusters' ? undefined : 'secondary'}
-              onClick={() => setActiveSection('clusters')}
+              onClick={() => {
+                setSelectedWorkspace(null);
+                setWorkspaceCoverage(null);
+                setWorkspacePages([]);
+                setClusters([]);
+                setActiveSection('clusters');
+              }}
             >
-              Clusters
+              Todos os clusters
             </Button>
           </Flex>
+
+          {selectedWorkspace ? (
+            <WorkspaceContext
+              workspace={selectedWorkspace}
+              coverage={workspaceCoverage || selectedWorkspace.coverage}
+              pages={workspacePages}
+              activeSection={activeSection}
+              onSectionChange={openWorkspaceSection}
+              onClose={closeWorkspace}
+            />
+          ) : null}
 
           {errorMessage ? (
             <Alert closeLabel="Fechar erro" title="Erro" variant="danger">
@@ -1142,7 +1325,7 @@ const SeoIntelligencePage = () => {
               <Flex justifyContent="space-between" alignItems="center" gap={4} wrap="wrap">
                 <Flex direction="column" alignItems="flex-start" gap={1}>
                   <Typography variant="beta">
-                    {selectedWorkspace ? selectedWorkspace.name : 'Todos os topics'}
+                    {selectedWorkspace ? 'Topics do workspace' : 'Todos os topics'}
                   </Typography>
                   <Typography textColor="neutral600">
                     {selectedWorkspace
@@ -1150,11 +1333,6 @@ const SeoIntelligencePage = () => {
                       : 'Visao global para auditoria de todos os topics.'}
                   </Typography>
                 </Flex>
-                {selectedWorkspace ? (
-                  <Button type="button" variant="tertiary" onClick={() => setActiveSection('workspaces')}>
-                    Voltar para pesquisas
-                  </Button>
-                ) : null}
               </Flex>
 
               <Box background="neutral0" borderColor="neutral150" hasRadius padding={5}>
@@ -1251,10 +1429,17 @@ const SeoIntelligencePage = () => {
                 <Flex direction="column" alignItems="flex-start" gap={1}>
                   <Typography variant="beta">Clusters editoriais</Typography>
                   <Typography textColor="neutral600">
-                    Agrupamento read-only de topics e pages publicadas por termo base.
+                    {selectedWorkspace
+                      ? `Clusters relacionados ao workspace ${selectedWorkspace.name}.`
+                      : 'Agrupamento read-only de topics e pages publicadas por termo base.'}
                   </Typography>
                 </Flex>
-                <Button type="button" variant="tertiary" loading={isClustersLoading} onClick={loadClusters}>
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  loading={isClustersLoading}
+                  onClick={() => loadClusters(selectedWorkspace?.id)}
+                >
                   Atualizar clusters
                 </Button>
               </Flex>

@@ -18,6 +18,8 @@
     "discover:keywords": "node scripts/discover-keywords.js",
     "import:keywords": "node scripts/import-keywords.js",
     "import:trend-topics": "node scripts/import-trend-topics.js",
+    "backfill:seo-workspaces": "node scripts/backfill-discovery-workspaces.js",
+    "test:seo-governance": "node --test tests/seo-intelligence/*.test.js",
     "refresh:topic-scores": "node scripts/refresh-topic-scores.js",
     "simulate:intent-ranking": "node scripts/simulate-intent-ranking.js",
     "inspect:topic-clusters": "node scripts/inspect-topic-clusters.js",

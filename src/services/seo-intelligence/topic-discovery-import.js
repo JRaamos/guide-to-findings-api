@@ -14,6 +14,7 @@ const {
 } = require('./discovery/trend-topic-import');
 const {
   findOrCreateDiscoveryWorkspace,
+  markDiscoveryWorkspace,
   refreshDiscoveryWorkspaceTotal,
   serializeWorkspace,
 } = require('./discovery-workspaces');
@@ -163,6 +164,7 @@ const discoverAndImportTopics = async (
     addScoringData(result, await refreshTopicScores(strapi));
   }
 
+  await markDiscoveryWorkspace(strapi, result.workspace.id);
   result.workspace = await refreshDiscoveryWorkspaceTotal(strapi, result.workspace.id);
 
   return result;

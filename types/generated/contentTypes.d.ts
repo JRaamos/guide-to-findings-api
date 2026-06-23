@@ -648,6 +648,7 @@ export interface ApiDiscoveryWorkspaceDiscoveryWorkspace
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    lastDiscoveryAt: Schema.Attribute.DateTime;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -677,6 +678,7 @@ export interface ApiDiscoveryWorkspaceDiscoveryWorkspace
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    workspaceKey: Schema.Attribute.String & Schema.Attribute.Unique;
   };
 }
 

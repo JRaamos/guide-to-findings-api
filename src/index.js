@@ -27,9 +27,10 @@ module.exports = {
     try {
       const result = await backfillDiscoveryWorkspaces(strapi);
 
-      if (result.linkedTopics > 0) {
+      if (result.linkedTopics > 0 || result.merged > 0) {
         strapi.log.info(
-          `[SEO Intelligence] Discovery workspace backfill linked ${result.linkedTopics} topics`
+          `[SEO Intelligence] Workspace governance backfill merged ${result.merged} workspaces, ` +
+          `moved ${result.movedTopics} topics and linked ${result.linkedTopics} orphan topics`
         );
       }
     } catch (error) {
